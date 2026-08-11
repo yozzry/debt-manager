@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}تقرير التقادم - المديونيات{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 animate-in">
+  <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+    <i class="bi bi-hourglass-split text-warning"></i>تقرير تقادم الديون
+  </h5>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="GET" action="{{ url_for('reports.aging_report') }}" class="d-flex align-items-center gap-2">
+      <label class="text-muted" style="font-size:0.8rem;">التاريخ المرجعي</label>
+      <input type="date" name="to" value="{{ date_to }}" class="form-control form-control-sm" style="width:150px;">
+      <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-funnel"></i></button>
+      {% if date_to %}<a href="{{ url_for('reports.aging_report') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x"></i></a>{% endif %}
+    </form>
+    <a href="{{ url_for('reports.aging_pdf', to=date_to) }}" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf"></i>PDF</a>
+    <a href="{{ url_for('reports.advanced_report') }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-right"></i>التقرير المتقدم
+    </a>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3 animate-in delay-1">
+    <div class="stat-card" style="background: linear-gradient(135deg, #059669, #047857)">
+      <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+      <div class="stat-value">{{ buckets.current.clients|length }}</div>
+      <div class="stat-label">حالي</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-value">{{ buckets['30'].clients|length }}</div>
+      <div class="stat-label">30-60 يوم</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #dc2626, #b91c1c)">
+      <div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
+      <div class="stat-value">{{ buckets['60'].clients|length }}</div>
+      <div class="stat-label">61-90 يوم</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #7f1d1d, #991b1b)">
+      <div class="stat-icon"><i class="bi bi-x-octagon"></i></div>
+      <div class="stat-value">{{ buckets['90'].clients|length }}</div>
+      <div class="stat-label">أكثر من 90 يوم</div>
+    </div>
+  </div>
+</div>
+
+<!-- Total -->
+<div class="card mb-4 animate-in delay-2">
+  <div class="card-body d-flex justify-content-between align-items-center">
+    <span style="font-size:0.9rem; color: var(--text-muted);">إجمالي المستحقات المتأخرة</span>
+    <span class="fw-bold" style="font-size:1.3rem; color: var(--danger);">{{ "{:,.2f}".format(total_overdue) }} {{ app_settings.currency_short }}</span>
+  </div>
+</div>
+
+<!-- Bucket Sections -->
+{% for key in ['current', '30', '60', '90'] %}
+{% set bucket = buckets[key] %}
+{% if bucket.clients %}
+<div class="card mb-3 animate-in delay-{{ loop.index }}">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold mb-0 d-flex align-items-center gap-2">
+      {% if key == 'current' %}<i class="bi bi-clock-history text-success"></i>
+      {% elif key == '30' %}<i class="bi bi-exclamation-triangle text-warning"></i>
+      {% elif key == '60' %}<i class="bi bi-exclamation-circle text-danger"></i>
+      {% else %}<i class="bi bi-x-octagon" style="color:#7f1d1d"></i>
+      {% endif %}
+      {{ bucket.label }}
+      <span class="badge bg-secondary" style="font-size:0.75rem;">{{ bucket.clients|length }} عميل</span>
+    </h6>
+    <span class="fw-bold" style="color: var(--danger);">{{ "{:,.2f}".format(bucket.total) }} {{ app_settings.currency_short }}</span>
+  </div>
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>اسم العميل</th>
+          <th>الهاتف</th>
+          <th class="text-center">عدد الأيام</th>
+          <th class="text-center">المديونية</th>
+          <th class="text-center">المدفوع</th>
+          <th class="text-center">المتبقي</th>
+          <th class="text-center">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c, age, balance in bucket.clients %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('clients.client_detail', cid=c.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ c.name }}
+            </a>
+          </td>
+          <td style="color: var(--text-muted); font-size: 0.85rem;">{{ c.phone or '—' }}</td>
+          <td class="text-center">
+            <span class="badge" style="background: {% if age <= 30 %}#059669{% elif age <= 60 %}#d97706{% elif age <= 90 %}#dc2626{% else %}#7f1d1d{% endif %}; color: white;">
+              {{ age }} يوم
+            </span>
+          </td>
+          <td class="text-center fw-semibold" style="color: var(--danger);">{{ "{:,.2f}".format(c.total_debt) }}</td>
+          <td class="text-center fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(c.total_paid) }}</td>
+          <td class="text-center fw-bold" style="color: var(--danger);">{{ "{:,.2f}".format(balance) }}</td>
+          <td class="text-center">
+            {% if c.phone and current_user.can_edit %}
+            <button class="btn-action btn-wa" title="تذكير واتساب"
+                    onclick='sendReminder({{ c.id }}, {{ c.name|tojson }})'>
+              <i class="bi bi-whatsapp"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if total_clients_aging == 0 %}
+<div class="card animate-in delay-1">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-check-circle" style="font-size:3rem; color: var(--success);"></i>
+    <p class="mt-3 fw-semibold" style="color: var(--success);">لا توجد ديون متأخرة!</p>
+  </div>
+</div>
+{% endif %}
+
+<form method="POST" id="csrf-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = document.getElementById('csrf_token').value;
+function sendReminder(id, name) {
+  if (!confirm(`إرسال تذكير واتساب للعميل "${name}"؟`)) return;
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fetch(`/api/whatsapp/send-reminder/${id}`, {
+    method: 'POST', body: fd
+  }).then(r => r.json()).then(d => {
+    showToast(d.ok ? 'تم إرسال التذكير بنجاح' : 'فشل الإرسال: ' + d.msg, d.ok ? 'success' : 'danger');
+  }).catch(() => showToast('خطأ في الاتصال', 'danger'));
+}
+</script>
+{% endblock %}

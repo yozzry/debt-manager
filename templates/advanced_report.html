@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}التقرير المتقدم{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 animate-in">
+  <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+    <i class="bi bi-graph-up text-primary"></i>التقرير المتقدم
+  </h5>
+  <a href="{{ url_for('reports.report') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-arrow-right"></i>التقرير العادي
+  </a>
+</div>
+
+<!-- Due Clients -->
+<div class="card mb-4 animate-in delay-1">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold mb-0 d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle text-danger"></i>
+      العملاء المستحقون
+      <span style="background: var(--danger-light); color: var(--danger); padding: 2px 10px; border-radius: 20px; font-size: 0.75rem;">
+        {{ due_clients|length }}
+      </span>
+    </h6>
+    <span class="fw-bold" style="color: var(--danger); font-size: 0.95rem;">
+      {{ "{:,.2f}".format(due_clients|sum(attribute='balance')) }} {{ app_settings.currency_short }}
+    </span>
+  </div>
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>العميل</th>
+          <th>الهاتف</th>
+          <th class="text-center">المديونية</th>
+          <th class="text-center">المدفوع</th>
+          <th class="text-center">المتبقي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in due_clients %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('clients.client_detail', cid=c.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ c.name }}
+            </a>
+          </td>
+          <td style="color: var(--text-muted); font-size: 0.85rem;">{{ c.phone or '—' }}</td>
+          <td class="text-center fw-semibold" style="color: var(--danger);">{{ "{:,.2f}".format(c.total_debt) }}</td>
+          <td class="text-center" style="color: var(--success);">{{ "{:,.2f}".format(c.total_paid) }}</td>
+          <td class="text-center fw-bold" style="color: var(--danger);">{{ "{:,.2f}".format(c.balance) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state" style="padding:2rem">
+              <i class="bi bi-emoji-smile" style="font-size:2rem"></i>
+              <p>لا يوجد عملاء مستحقون — كل شيء ممتاز!</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Paid Clients -->
+<div class="card animate-in delay-2">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold mb-0 d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle text-success"></i>
+      العملاء المدفوعون
+      <span style="background: var(--success-light); color: var(--success); padding: 2px 10px; border-radius: 20px; font-size: 0.75rem;">
+        {{ paid_clients|length }}
+      </span>
+    </h6>
+  </div>
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>العميل</th>
+          <th>الهاتف</th>
+          <th class="text-center">إجمالي الدفع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in paid_clients %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('clients.client_detail', cid=c.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ c.name }}
+            </a>
+          </td>
+          <td style="color: var(--text-muted); font-size: 0.85rem;">{{ c.phone or '—' }}</td>
+          <td class="text-center fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(c.total_paid) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4">
+            <div class="empty-state" style="padding:2rem">
+              <i class="bi bi-inbox" style="font-size:2rem"></i>
+              <p>لا يوجد عملاء مدفوعون بعد</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

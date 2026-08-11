@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}قيد جديد - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('accounts.entries') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-journal-plus text-primary"></i> قيد جديد</h5>
+  </div>
+</div>
+
+{% if not accounts %}
+<div class="alert alert-warning animate-in">
+  لا توجد حسابات تفصيلية بعد — <a href="{{ url_for('accounts.index') }}">أضف حسابات</a> أو أنشئ الحسابات الافتراضية أولاً.
+</div>
+{% endif %}
+
+<div class="card animate-in delay-1">
+  <div class="card-body">
+    <form method="POST" id="entryForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <label class="form-label">التاريخ</label>
+          {{ form.date(class='form-control', required=true) }}
+        </div>
+        <div class="col-md-9">
+          <label class="form-label">بيان القيد</label>
+          {{ form.description(class='form-control', rows=2, required=true, maxlength=500) }}
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold">أسطر القيد</span>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addLine()"><i class="bi bi-plus-lg"></i>سطر</button>
+      </div>
+
+      <div class="table-container">
+        <table class="table align-middle mb-0" id="linesTable">
+          <thead>
+            <tr>
+              <th style="width:50px">#</th>
+              <th>الحساب</th>
+              <th class="text-center">مدين</th>
+              <th class="text-center">دائن</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-muted" style="font-size:0.8rem">1</td>
+              <td>
+                <select name="account_id" class="form-select" required>
+                  <option value="">— اختر حساباً —</option>
+                  {% for a in accounts %}<option value="{{ a.id }}">{{ a.code }} - {{ a.name }}</option>{% endfor %}
+                </select>
+              </td>
+              <td><input type="number" name="debit" step="0.01" min="0" class="form-control text-center" oninput="updateTotals()"></td>
+              <td><input type="number" name="credit" step="0.01" min="0" class="form-control text-center" oninput="updateTotals()"></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="text-muted" style="font-size:0.8rem">2</td>
+              <td>
+                <select name="account_id" class="form-select" required>
+                  <option value="">— اختر حساباً —</option>
+                  {% for a in accounts %}<option value="{{ a.id }}">{{ a.code }} - {{ a.name }}</option>{% endfor %}
+                </select>
+              </td>
+              <td><input type="number" name="debit" step="0.01" min="0" class="form-control text-center" oninput="updateTotals()"></td>
+              <td><input type="number" name="credit" step="0.01" min="0" class="form-control text-center" oninput="updateTotals()"></td>
+              <td></td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" class="text-end fw-semibold">الإجمالي</td>
+              <td class="text-center fw-bold" id="totalDebit" style="color: var(--primary);">0.00</td>
+              <td class="text-center fw-bold" id="totalCredit" style="color: var(--primary);">0.00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="d-flex align-items-center gap-2 mt-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i>حفظ القيد</button>
+        <span class="text-muted" id="balanceHint" style="font-size:0.85rem;"></span>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ACCOUNTS = [
+  {% for a in accounts %}{ id: {{ a.id }}, label: "{{ a.code }} - {{ a.name }}" },{% endfor %}
+];
+
+function addLine() {
+  const tbody = document.querySelector('#linesTable tbody');
+  const row = document.createElement('tr');
+  const num = tbody.children.length + 1;
+  let options = '<option value="">— اختر حساباً —</option>';
+  ACCOUNTS.forEach(a => { options += `<option value="${a.id}">${a.label}</option>`; });
+  row.innerHTML = `
+    <td class="text-muted" style="font-size:0.8rem">${num}</td>
+    <td><select name="account_id" class="form-select" required>${options}</select></td>
+    <td><input type="number" name="debit" step="0.01" min="0" class="form-control text-center" oninput="updateTotals()"></td>
+    <td><input type="number" name="credit" step="0.01" min="0" class="form-control text-center" oninput="updateTotals()"></td>
+    <td class="text-center"><button type="button" class="btn-action" style="color: var(--danger);" onclick="this.closest('tr').remove(); updateTotals();"><i class="bi bi-x-lg"></i></button></td>`;
+  tbody.appendChild(row);
+}
+
+function updateTotals() {
+  let d = 0, c = 0;
+  document.querySelectorAll('#linesTable tbody tr').forEach(r => {
+    d += parseFloat(r.querySelector('[name=debit]').value) || 0;
+    c += parseFloat(r.querySelector('[name=credit]').value) || 0;
+  });
+  document.getElementById('totalDebit').textContent = d.toFixed(2);
+  document.getElementById('totalCredit').textContent = c.toFixed(2);
+  const hint = document.getElementById('balanceHint');
+  if (Math.abs(d - c) < 0.005 && d > 0) {
+    hint.textContent = '✓ القيد متوازن';
+    hint.style.color = 'var(--success, #059669)';
+  } else {
+    hint.textContent = d > 0 || c > 0 ? 'القيد غير متوازن — فرق ' + Math.abs(d - c).toFixed(2) : '';
+    hint.style.color = 'var(--danger, #dc3545)';
+  }
+}
+updateTotals();
+</script>
+{% endblock %}

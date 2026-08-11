@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}بيع {{ sale.invoice_number }} - نقطة البيع{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('pos.history') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <div>
+      <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+        <i class="bi bi-receipt text-primary"></i>{{ sale.invoice_number }}
+        <span class="badge-status {{ 'badge-paid' if sale.status=='completed' }}"
+              style="{{ 'background: var(--danger-light); color: var(--danger);' if sale.status=='cancelled' }}">
+          {{ sale.status_label }}
+        </span>
+      </h5>
+      <div class="text-muted" style="font-size:0.8rem;">{{ sale.date.strftime('%Y-%m-%d') if sale.date }} — {{ sale.payment_method_label }}</div>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('pos.receipt', sid=sale.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-receipt"></i>الإيصال
+    </a>
+    {% if (current_user.can_edit or current_user.can_pos) and sale.status == 'completed' %}
+    <form method="POST" action="{{ url_for('pos.print_sale', sid=sale.id) }}" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-info btn-sm"><i class="bi bi-printer"></i>طباعة حرارية</button>
+    </form>
+    {% endif %}
+    {% if current_user.can_edit and sale.status == 'completed' %}
+    <form method="POST" action="{{ url_for('pos.cancel_sale', sid=sale.id) }}" class="d-inline"
+          onsubmit="return confirm('إلغاء البيع؟ سيتم عكس المخزون' + ({{ 1 if sale.payment_method == 'credit' else 0 }} ? ' وحذف الفاتورة الآجلة من حساب العميل' : '') + '.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i>إلغاء البيع</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 animate-in delay-1">
+    <div class="stat-card" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
+      <div class="stat-icon"><i class="bi bi-person"></i></div>
+      <div class="stat-value" style="font-size:1rem;">{{ sale.client.name if sale.client else '—' }}</div>
+      <div class="stat-label">العميل</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #0891b2, #155e75)">
+      <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+      <div class="stat-value">{{ sale.items|length }}</div>
+      <div class="stat-label">عدد البنود</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-tag"></i></div>
+      <div class="stat-value">{{ "{:,.2f}".format(sale.discount or 0) }}</div>
+      <div class="stat-label">الخصم</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #059669, #047857)">
+      <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+      <div class="stat-value">{{ "{:,.2f}".format(sale.total or 0) }}</div>
+      <div class="stat-label">الإجمالي</div>
+    </div>
+  </div>
+</div>
+
+<div class="card animate-in delay-2">
+  <div class="card-header py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">البنود</span>
+    <span class="text-muted" style="font-size:0.8rem;">مرجع حركات المخزون: {{ sale.invoice_number }}</span>
+  </div>
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>المنتج</th>
+          <th class="text-center">الكمية</th>
+          <th class="text-center">سعر الوحدة</th>
+          <th class="text-center">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in sale.items %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('products.product_detail', pid=it.product.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ it.product.name if it.product else '—' }}
+            </a>
+          </td>
+          <td class="text-center fw-semibold">{{ "{:g}".format(it.quantity) }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(it.unit_price or 0) }}</td>
+          <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(it.total) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="text-end text-muted">المجموع الفرعي</td>
+          <td class="text-center">{{ "{:,.2f}".format(sale.subtotal or 0) }}</td>
+        </tr>
+        <tr>
+          <td colspan="4" class="text-end text-muted">الخصم</td>
+          <td class="text-center">-{{ "{:,.2f}".format(sale.discount or 0) }}</td>
+        </tr>
+        <tr>
+          <td colspan="4" class="text-end fw-bold">الإجمالي</td>
+          <td class="text-center fw-bold fs-6" style="color: var(--primary);">{{ "{:,.2f}".format(sale.total or 0) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% if sale.notes %}
+<div class="card mt-3 animate-in delay-3">
+  <div class="card-body">
+    <div class="text-muted" style="font-size:0.8rem;">ملاحظات</div>
+    <p class="mb-0" style="white-space: pre-wrap;">{{ sale.notes }}</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

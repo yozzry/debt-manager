@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}تقرير الأرباح - لوحة العمليات{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-graph-up-arrow text-primary"></i> تقرير الأرباح</h5>
+  </div>
+  <a href="{{ url_for('dashboard.profit_report_export', from=date_from or '', to=date_to or '') }}" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-filetype-csv"></i>تصدير CSV
+  </a>
+</div>
+
+<div class="card mb-4 animate-in delay-1">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('dashboard.profit_report') }}" class="row g-2 align-items-center">
+      <div class="col-md-4">
+        <label class="form-label text-muted" style="font-size:0.8rem;">من تاريخ</label>
+        <input type="date" name="from" class="form-control" value="{{ date_from or '' }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label text-muted" style="font-size:0.8rem;">إلى تاريخ</label>
+        <input type="date" name="to" class="form-control" value="{{ date_to or '' }}">
+      </div>
+      <div class="col-md-4 d-flex gap-2 align-items-end">
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i>عرض</button>
+        {% if date_from or date_to %}
+        <a href="{{ url_for('dashboard.profit_report') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #059669, #047857)">
+      <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(totals.revenue) }}</div>
+      <div class="stat-label">الإيرادات ({{ totals.count }} عملية)</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(totals.cogs) }}</div>
+      <div class="stat-label">تكلفة البضاعة المباعة</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
+      <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(totals.gross) }}</div>
+      <div class="stat-label">إجمالي الربح (هامش {{ "{:.1f}".format(totals.margin) }}%)</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #0891b2, #155e75)">
+      <div class="stat-icon"><i class="bi bi-cart-dash"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(totals.purchases) }}</div>
+      <div class="stat-label">المشتريات المستلمة (المحصّل {{ "{:,.0f}".format(totals.collected) }})</div>
+    </div>
+  </div>
+</div>
+
+<div class="card animate-in delay-3">
+  <div class="card-header py-3"><span class="fw-semibold">آخر 6 أشهر</span></div>
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>الشهر</th>
+          <th class="text-center">الإيرادات</th>
+          <th class="text-center">تكلفة المبيعات</th>
+          <th class="text-center">إجمالي الربح</th>
+          <th class="text-center">هامش الربح</th>
+          <th class="text-center">المشتريات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in months %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td class="fw-semibold" dir="ltr">{{ m.label }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(m.revenue) }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(m.cogs) }}</td>
+          <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(m.gross) }}</td>
+          <td class="text-center">{{ "{:.1f}%".format(m.margin) }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(m.purchases) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

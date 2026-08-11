@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block title %}إدارة المستخدمين{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 animate-in">
+  <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+    <i class="bi bi-people text-primary"></i>إدارة المستخدمين
+  </h5>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+    <i class="bi bi-plus-lg"></i>مستخدم جديد
+  </button>
+</div>
+
+<div class="card animate-in delay-1">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>اسم المستخدم</th>
+          <th class="text-center">الدور</th>
+          <th class="text-center">الحالة</th>
+          <th class="text-center">تاريخ الإنشاء</th>
+          <th class="text-center">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td class="fw-semibold">
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:32px; height:32px; border-radius:50%; background: var(--primary-light); display:flex; align-items:center; justify-content:center; font-size:0.75rem; color: var(--primary); font-weight:700;">
+                {{ u.username[0]|upper }}
+              </div>
+              {{ u.username }}
+              {% if u.id == current_user.id %}
+              <span style="background: var(--primary); color:#fff; padding: 1px 8px; border-radius: 20px; font-size: 0.7rem; font-weight:600;">أنت</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="text-center">
+            <span class="badge-status" style="
+              {{ 'background: var(--danger-light); color: var(--danger);' if u.role=='admin' else
+                 'background: var(--warning-light); color: var(--warning);' if u.role=='editor' else
+                 'background: var(--success-light); color: var(--success);' if u.role=='cashier' else
+                 'background: var(--primary-light); color: var(--primary);' if u.role=='accountant' else
+                 'background: var(--border-light); color: var(--text-muted);' }}
+            ">
+              {{ 'مسؤول' if u.role=='admin' else 'محرر' if u.role=='editor' else 'أمين صندوق' if u.role=='cashier' else 'محاسب' if u.role=='accountant' else 'مشاهد' }}
+            </span>
+          </td>
+          <td class="text-center">
+            <span class="badge-status" style="
+              {{ 'background: var(--success-light); color: var(--success);' if u.is_active_flag else
+                 'background: var(--danger-light); color: var(--danger);' }}
+            ">
+              <i class="bi {{ 'bi-check-circle-fill' if u.is_active_flag else 'bi-x-circle-fill' }}" style="font-size:0.65rem"></i>
+              {{ 'نشط' if u.is_active_flag else 'معطل' }}
+            </span>
+          </td>
+          <td class="text-center" style="color: var(--text-muted); font-size: 0.83rem;">
+            {{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '—' }}
+          </td>
+          <td class="text-center">
+            {% if u.id != current_user.id %}
+            <div class="d-flex gap-1 justify-content-center">
+              <form method="POST" action="{{ url_for('auth.user_toggle', uid=u.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn-action {{ 'btn-del' if u.is_active_flag else 'btn-view' }}"
+                        title="{{ 'تعطيل' if u.is_active_flag else 'تفعيل' }}">
+                  <i class="bi bi-{{ 'pause-fill' if u.is_active_flag else 'play-fill' }}"></i>
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('auth.user_delete', uid=u.id) }}" style="display:inline"
+                    onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn-action btn-del" title="حذف">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            </div>
+            {% else %}
+            <span style="color: var(--text-muted); font-size: 0.82rem;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-person-plus text-primary"></i>إضافة مستخدم
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('auth.user_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+            <input type="text" name="username" class="form-control" required placeholder="اسم المستخدم">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control" required minlength="8" placeholder="8 أحرف على الأقل">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">الدور</label>
+            <select name="role" class="form-select">
+              <option value="viewer">مشاهد — قراءة فقط</option>
+              <option value="editor">محرر — إضافة وتعديل</option>
+              <option value="cashier">أمين صندوق — نقطة البيع فقط</option>
+              <option value="accountant">محاسب — المحاسبة فقط</option>
+              <option value="admin">مسؤول — صلاحيات كاملة</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i>إضافة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

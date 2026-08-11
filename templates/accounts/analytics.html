@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}التحليلات - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-bar-chart-line text-primary"></i> الرسوم البيانية للقوائم المالية</h5>
+    <div class="text-muted" style="font-size:0.8rem;">آخر 12 شهراً</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('accounts.ledger') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-book-half"></i>دفتر الأستاذ</a>
+    <a href="{{ url_for('accounts.trial_balance') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-scale"></i>ميزان المراجعة</a>
+    <a href="{{ url_for('accounts.balance_sheet') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-clipboard-data"></i>الميزانية العمومية</a>
+    <a href="{{ url_for('accounts.income_statement') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up-arrow"></i>قائمة الدخل</a>
+    <a href="{{ url_for('accounts.cash_flow') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-cash-stack"></i>التدفقات النقدية</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 animate-in delay-1">
+    <div class="card">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-graph-up-arrow text-primary"></i> تطور صافي الدخل (آخر 12 شهراً)</span></div>
+      <div class="card-body" style="height:320px;">
+        <canvas id="netIncomeChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 animate-in delay-2">
+    <div class="card">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-graph-up text-success"></i> الإيرادات مقابل المصروفات</span></div>
+      <div class="card-body" style="height:300px;">
+        <canvas id="incomeExpenseChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 animate-in delay-3">
+    <div class="card">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-pie-chart text-warning"></i> هيكل الميزانية العمومية</span></div>
+      <div class="card-body" style="height:300px;">
+        {% if type_totals %}
+        <canvas id="structureChart"></canvas>
+        {% else %}
+        <div class="text-center text-muted py-5">لا توجد بيانات لعرضها بعد.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 animate-in delay-3">
+    <div class="card">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-graph-up-arrow text-success"></i> أكبر الحسابات إيراداً</span></div>
+      <div class="card-body" style="height:300px;">
+        {% if income_top %}
+        <canvas id="incomeTopChart"></canvas>
+        {% else %}
+        <div class="text-center text-muted py-5">لا توجد بيانات لعرضها بعد.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 animate-in delay-3">
+    <div class="card">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-graph-down-arrow text-danger"></i> أكبر الحسابات مصروفاً</span></div>
+      <div class="card-body" style="height:300px;">
+        {% if expense_top %}
+        <canvas id="expenseTopChart"></canvas>
+        {% else %}
+        <div class="text-center text-muted py-5">لا توجد بيانات لعرضها بعد.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const labels = {{ labels | tojson }};
+const incomes = {{ incomes | tojson }};
+const expenses = {{ expenses | tojson }};
+const nets = {{ nets | tojson }};
+const font = 'IBM Plex Sans Arabic';
+
+new Chart(document.getElementById('netIncomeChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'صافي الدخل',
+      data: nets,
+      borderColor: '#4f46e5',
+      backgroundColor: 'rgba(79, 70, 229, 0.12)',
+      fill: true,
+      tension: 0.35,
+      pointRadius: 4,
+      pointBackgroundColor: '#4f46e5',
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { family: font, size: 12 } } },
+      tooltip: { callbacks: { label: c => `صافي الدخل: ${c.parsed.y.toLocaleString('en-US', {maximumFractionDigits:2})}` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: font } } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: font }, callback: v => v.toLocaleString('en-US') } }
+    }
+  }
+});
+
+new Chart(document.getElementById('incomeExpenseChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'الإيرادات', data: incomes, backgroundColor: '#059669', borderRadius: 4 },
+      { label: 'المصروفات', data: expenses, backgroundColor: '#d97706', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { family: font, size: 12 } } },
+      tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y.toLocaleString('en-US', {maximumFractionDigits:2})}` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: font } } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: font }, callback: v => v.toLocaleString('en-US') } }
+    }
+  }
+});
+
+{% if type_totals %}
+new Chart(document.getElementById('structureChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['الأصول', 'الخصوم', 'حقوق الملكية'],
+    datasets: [{
+      data: [{{ type_totals.assets }}, {{ type_totals.liabilities }}, {{ type_totals.equity }}],
+      backgroundColor: ['#4f46e5', '#0891b2', '#7c3aed'],
+      borderWidth: 0, borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '60%',
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { family: font, size: 12 }, padding: 12 } },
+      tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed.toLocaleString('en-US', {maximumFractionDigits:2})}` } }
+    }
+  }
+});
+{% endif %}
+
+{% if income_top %}
+new Chart(document.getElementById('incomeTopChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ income_top | map(attribute=0) | map(attribute='name') | list | tojson }},
+    datasets: [{
+      label: 'الإيرادات',
+      data: {{ income_top | map(attribute=1) | list | tojson }},
+      backgroundColor: '#059669', borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: c => `${c.parsed.x.toLocaleString('en-US', {maximumFractionDigits:2})}` } }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: font }, callback: v => v.toLocaleString('en-US') } },
+      y: { grid: { display: false }, ticks: { font: { family: font } } }
+    }
+  }
+});
+{% endif %}
+
+{% if expense_top %}
+new Chart(document.getElementById('expenseTopChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ expense_top | map(attribute=0) | map(attribute='name') | list | tojson }},
+    datasets: [{
+      label: 'المصروفات',
+      data: {{ expense_top | map(attribute=1) | list | tojson }},
+      backgroundColor: '#d97706', borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: c => `${c.parsed.x.toLocaleString('en-US', {maximumFractionDigits:2})}` } }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: font }, callback: v => v.toLocaleString('en-US') } },
+      y: { grid: { display: false }, ticks: { font: { family: font } } }
+    }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}حركات المخزون - المنتجات{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('products.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+  <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left-right text-primary"></i>حركات المخزون
+  </h5>
+</div>
+
+<div class="card animate-in">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:60px">#</th>
+          <th>المنتج</th>
+          <th>النوع</th>
+          <th class="text-center">الكمية</th>
+          <th class="text-center">الرصيد بعد</th>
+          <th>المرجع</th>
+          <th>السبب</th>
+          <th class="text-center">التاريخ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in pagination.items %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ m.id }}</td>
+          <td>
+            {% if m.product %}
+            <a href="{{ url_for('products.product_detail', pid=m.product.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ m.product.name }}
+            </a>
+            {% else %}
+            <span class="text-muted">حُذف المنتج</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge-status {{ 'badge-paid' if m.movement_type=='IN' else 'badge-due' if m.movement_type=='OUT' }}"
+                  style="{{ 'background: var(--warning-light); color: var(--warning);' if m.movement_type=='ADJUST' }}">
+              {{ {'IN': 'وارد', 'OUT': 'منصرف', 'ADJUST': 'تسوية'}.get(m.movement_type, m.movement_type) }}
+            </span>
+          </td>
+          <td class="text-center fw-bold {{ 'text-success' if m.movement_type=='IN' else 'text-danger' if m.movement_type=='OUT' else 'text-warning' }}">
+            {{ '{:+g}'.format(m.quantity or 0) }}
+          </td>
+          <td class="text-center">{{ "{:g}".format(m.balance_after or 0) }}</td>
+          <td style="font-size:0.82rem; color: var(--text-muted);">{{ m.reference or '—' }}</td>
+          <td style="font-size:0.85rem; color: var(--text-secondary);">{{ m.notes or '—' }}</td>
+          <td class="text-center" style="font-size:0.8rem; color: var(--text-muted);">
+            {{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at }}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <i class="bi bi-arrow-left-right"></i>
+              <p>لا توجد حركات مخزون بعد</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination.pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+  <ul class="pagination mb-0">
+    {% if pagination.has_prev %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.prev_num }}"><i class="bi bi-chevron-right"></i></a>
+    </li>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.next_num }}"><i class="bi bi-chevron-left"></i></a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

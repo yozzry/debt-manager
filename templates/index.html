@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+{% block title %}الرئيسية - المديونيات{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 animate-in delay-1">
+    <div class="stat-card" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
+      <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+      <div class="stat-value">{{ stats.total_clients }}</div>
+      <div class="stat-label">إجمالي العملاء</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #dc2626, #b91c1c)">
+      <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-value">{{ stats.due_clients }}</div>
+      <div class="stat-label">مستحقون</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #059669, #047857)">
+      <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="stat-value">{{ stats.paid_clients }}</div>
+      <div class="stat-label">مدفوعون</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(stats.total_balance) }}</div>
+      <div class="stat-label">الرصيد المستحق ({{ app_settings.currency_short }})</div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4 animate-in delay-2">
+    <div class="card h-100">
+      <div class="card-header">
+        <h6 class="fw-bold mb-0" style="font-size:0.85rem;"><i class="bi bi-pie-chart text-primary"></i> نسب المديونية</h6>
+      </div>
+      <div class="card-body d-flex align-items-center justify-content-center" style="height:220px;">
+        <canvas id="debtPieChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8 animate-in delay-3">
+    <div class="card h-100">
+      <div class="card-header">
+        <h6 class="fw-bold mb-0" style="font-size:0.85rem;"><i class="bi bi-graph-up text-primary"></i> نشاط السداد (آخر 6 أشهر)</h6>
+      </div>
+      <div class="card-body" style="height:220px;">
+        <canvas id="collectionTrendChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if has_accounts %}
+<!-- Accounting KPIs -->
+<div class="card mb-4 animate-in delay-3">
+  <div class="card-header py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-semibold"><i class="bi bi-journal-text text-primary"></i> ملخص المحاسبة</span>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('accounts.balance_sheet') }}" class="btn btn-outline-primary btn-sm">الميزانية</a>
+      <a href="{{ url_for('accounts.income_statement') }}" class="btn btn-outline-primary btn-sm">قائمة الدخل</a>
+      <a href="{{ url_for('accounts.cash_flow') }}" class="btn btn-outline-primary btn-sm">التدفقات النقدية</a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% set acct_kpis = [
+        ('إجمالي الأصول', acct.assets, '#4f46e5', 'bi-cash-coin'),
+        ('إجمالي الخصوم', acct.liabilities, '#0891b2', 'bi-file-earmark-text'),
+        ('حقوق الملكية', acct.equity, '#7c3aed', 'bi-person-badge'),
+        ('صافي الدخل', acct.net_income, ('#059669' if acct.net_income >= 0 else '#dc2626'), 'bi-graph-up-arrow'),
+        ('النقدية والبنك', acct.cash, '#d97706', 'bi-cash-stack'),
+      ] %}
+      {% for label, value, color, icon in acct_kpis %}
+      <div class="col-6 col-md-4 col-xl text-center">
+        <div class="stat-card" style="background: linear-gradient(135deg, {{ color }}, {{ color }}cc)">
+          <div class="stat-icon"><i class="bi {{ icon }}"></i></div>
+          <div class="stat-value">{{ "{:,.2f}".format(value) }} <span style="font-size:0.8rem; opacity:0.8;">{{ app_settings.currency_short }}</span></div>
+          <div class="stat-label">{{ label }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- WhatsApp Status -->
+<div class="wa-status-bar animate-in delay-3" id="waStatusBar">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-whatsapp" style="font-size:1.1rem; color: var(--success);"></i>
+    <span class="fw-semibold" style="font-size:0.85rem;">واتساب:</span>
+    <span id="waStatusText" style="font-size:0.83rem; color: var(--text-muted);">جاري التحقق...</span>
+    <span id="waStatusDot" class="wa-dot wa-dot-unknown"></span>
+  </div>
+  <a href="{{ url_for('whatsapp.settings') }}" style="font-size:0.8rem; color: var(--primary); text-decoration:none;">
+    <i class="bi bi-gear"></i> الإعدادات
+  </a>
+</div>
+
+<!-- Search & Actions -->
+<div class="card mb-4 animate-in delay-2">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-md-6">
+        <form method="GET" action="/" class="d-flex gap-2">
+          <div class="input-group">
+            <span class="input-group-text" style="border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--card-bg); border-color: var(--border);">
+              <i class="bi bi-search" style="color: var(--text-muted)"></i>
+            </span>
+            <input type="text" name="q" value="{{ search }}" class="form-control"
+                   placeholder="بحث بالاسم أو رقم الهاتف..."
+                   style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0;">
+          </div>
+          <select name="status" class="form-select" style="max-width: 140px;">
+            <option value="" {{ 'selected' if not status_filter }}>الكل</option>
+            <option value="due" {{ 'selected' if status_filter=='due' }}>مستحق</option>
+            <option value="paid" {{ 'selected' if status_filter=='paid' }}>مدفوع</option>
+          </select>
+          <button class="btn btn-primary px-3">
+            <i class="bi bi-search"></i>
+          </button>
+        </form>
+      </div>
+      <div class="col-12 col-md-6 d-flex gap-2 justify-content-md-end flex-wrap">
+        {% if current_user.can_edit %}
+        <a href="{{ url_for('clients.client_add') }}" class="btn btn-success">
+          <i class="bi bi-plus-lg"></i>عميل جديد
+        </a>
+        {% endif %}
+        <a href="{{ url_for('reports.export_excel_route', q=search, status=status_filter) }}" class="btn btn-outline-primary">
+          <i class="bi bi-filetype-xlsx"></i>تصدير
+        </a>
+        <a href="{{ url_for('reports.advanced_report') }}" class="btn btn-outline-primary">
+          <i class="bi bi-graph-up"></i>تقرير متقدم
+        </a>
+        <a href="{{ url_for('reports.aging_report') }}" class="btn btn-outline-warning">
+          <i class="bi bi-hourglass-split"></i>تقادم الديون
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Clients Table -->
+<div class="card animate-in delay-3">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>اسم العميل</th>
+          <th>رقم الهاتف</th>
+          <th class="text-center">المديونية</th>
+          <th class="text-center">المدفوع</th>
+          <th class="text-center">المتبقي</th>
+          <th class="text-center">الحالة</th>
+          <th class="text-center" style="width:160px">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index + (pagination.page - 1) * 20 }}</td>
+          <td>
+            <a href="{{ url_for('clients.client_detail', cid=c.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ c.name }}
+            </a>
+          </td>
+          <td>
+            {% if c.phone %}
+            <a href="tel:{{ c.phone }}" class="text-decoration-none" style="color: var(--text-muted); font-size: 0.85rem;">
+              <i class="bi bi-telephone-outlined me-1" style="font-size:0.8rem"></i>{{ c.phone }}
+            </a>
+            {% else %}
+            <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center fw-semibold" style="color: var(--danger);">{{ "{:,.2f}".format(c.total_debt) }}</td>
+          <td class="text-center fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(c.total_paid) }}</td>
+          <td class="text-center fw-bold" style="color: {{ 'var(--danger)' if c.balance > 0 else 'var(--success)' }};">
+            {{ "{:,.2f}".format(c.balance) }}
+          </td>
+          <td class="text-center">
+            <span class="badge-status {{ 'badge-due' if c.status=='due' else 'badge-paid' }}">
+              <i class="bi {{ 'bi-clock-history' if c.status=='due' else 'bi-check-lg' }}" style="font-size:0.7rem"></i>
+              {{ 'مستحق' if c.status=='due' else 'مدفوع' }}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center">
+              <a href="{{ url_for('clients.client_detail', cid=c.id) }}" class="btn-action btn-view" title="التفاصيل">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if current_user.can_edit %}
+              <a href="{{ url_for('clients.client_edit', cid=c.id) }}" class="btn-action btn-edit" title="تعديل">
+                <i class="bi bi-pencil-square"></i>
+              </a>
+              {% if c.phone %}
+              <button class="btn-action btn-wa" title="تذكير واتساب"
+                      data-id="{{ c.id }}" data-name="{{ c.name }}"
+                      onclick="sendReminder(+this.dataset.id, this.dataset.name)">
+                <i class="bi bi-whatsapp"></i>
+              </button>
+              {% endif %}
+              {% endif %}
+              {% if current_user.is_admin %}
+              <button class="btn-action btn-del" title="حذف"
+                      data-id="{{ c.id }}" data-name="{{ c.name }}"
+                      onclick="confirmDelete(+this.dataset.id, this.dataset.name)">
+                <i class="bi bi-trash3"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <i class="bi bi-inbox"></i>
+              <p>لا يوجد عملاء حالياً</p>
+              {% if current_user.can_edit %}
+              <a href="{{ url_for('clients.client_add') }}" class="btn btn-primary mt-2">
+                <i class="bi bi-plus-lg"></i>إضافة أول عميل
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+  <ul class="pagination mb-0">
+    {% if pagination.has_prev %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.prev_num }}&q={{ search|urlencode }}&status={{ status_filter|urlencode }}">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </li>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="?page={{ p }}&q={{ search|urlencode }}&status={{ status_filter|urlencode }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.next_num }}&q={{ search|urlencode }}&status={{ status_filter|urlencode }}">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+<!-- Delete Form -->
+<form method="POST" id="deleteForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.wa-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1.2rem;
+}
+.wa-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+}
+.wa-dot-connected { background: var(--success); box-shadow: 0 0 6px rgba(5,150,105,0.5); }
+.wa-dot-disconnected { background: var(--danger); }
+.wa-dot-unknown { background: var(--text-muted); }
+</style>
+<script>
+function confirmDelete(id, name) {
+  if (!confirm(`هل تريد حذف العميل "${name}"؟\nسيتم حذف جميع فواتيره ومدفوعاته نهائياً.`)) return;
+  const f = document.getElementById('deleteForm');
+  f.action = `/client/${id}/delete`;
+  f.submit();
+}
+function sendReminder(id, name) {
+  if (!confirm(`إرسال تذكير واتساب للعميل "${name}"؟`)) return;
+  const fd = new FormData();
+  fd.append('csrf_token', document.querySelector('[name=csrf_token]').value);
+  fetch(`/api/whatsapp/send-reminder/${id}`, {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()).then(d => {
+    showToast(d.ok ? 'تم إرسال التذكير بنجاح' : 'فشل الإرسال: ' + d.msg, d.ok ? 'success' : 'danger');
+  }).catch(() => showToast('خطأ في الاتصال', 'danger'));
+}
+
+async function checkWaStatus() {
+  try {
+    const r = await fetch('/api/whatsapp/status', { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    const dot = document.getElementById('waStatusDot');
+    const txt = document.getElementById('waStatusText');
+    if (d.connected) {
+      dot.className = 'wa-dot wa-dot-connected';
+      txt.textContent = 'متصل';
+      txt.style.color = 'var(--success)';
+      txt.title = '';
+    } else {
+      dot.className = 'wa-dot wa-dot-disconnected';
+      txt.textContent = 'غير متصل';
+      txt.style.color = 'var(--danger)';
+      txt.title = d.error || '';
+    }
+  } catch(e) {
+    document.getElementById('waStatusDot').className = 'wa-dot wa-dot-disconnected';
+    document.getElementById('waStatusText').textContent = 'غير متصل';
+    document.getElementById('waStatusText').style.color = 'var(--danger)';
+    document.getElementById('waStatusText').title = 'خدمة Baileys غير runnable';
+  }
+}
+checkWaStatus();
+setInterval(checkWaStatus, 30000);
+
+// Debt Pie Chart
+const pieCtx = document.getElementById('debtPieChart');
+if (pieCtx) {
+  new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['المدفوع', 'المتبقي'],
+      datasets: [{
+        data: [{{ stats.total_paid|default(0) }}, {{ stats.total_balance|default(0) }}],
+        backgroundColor: ['#059669', '#dc2626'],
+        borderWidth: 0,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'IBM Plex Sans Arabic', size: 11 }, padding: 12 } }
+      }
+    }
+  });
+}
+
+// Collection Trend Chart
+const trendCtx = document.getElementById('collectionTrendChart');
+if (trendCtx) {
+  fetch('/api/v1/reports/trends')
+    .then(r => r.json())
+    .then(d => {
+      const labels = d.trends.map(t => t.month);
+      const debt = d.trends.map(t => t.total_debt);
+      const paid = d.trends.map(t => t.total_paid);
+      new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'المديونية', data: debt, borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+            { label: 'السداد', data: paid, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.1)', fill: true, tension: 0.4, pointRadius: 3 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: 'IBM Plex Sans Arabic', size: 10 } } },
+            x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Sans Arabic', size: 10 } } }
+          },
+          plugins: {
+            legend: { labels: { font: { family: 'IBM Plex Sans Arabic', size: 11 } } }
+          }
+        }
+      });
+    })
+    .catch(() => {});
+}
+</script>
+{% endblock %}

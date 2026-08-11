@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}التصنيفات - المنتجات{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('products.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+  <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+    <i class="bi bi-tags text-primary"></i>التصنيفات
+  </h5>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card animate-in">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3" style="font-size:0.9rem;"><i class="bi bi-plus-circle text-primary"></i> إضافة تصنيف جديد</h6>
+        {% if current_user.can_edit %}
+        <form method="POST" action="{{ url_for('products.categories') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label">اسم التصنيف <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required placeholder="مثال: أجهزة إلكترونية">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">الوصف <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+            <textarea name="description" class="form-control" rows="2" placeholder="وصف مختصر..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i>إضافة
+          </button>
+        </form>
+        {% else %}
+        <p class="text-muted" style="font-size:0.85rem;">ليس لديك صلاحية لإضافة تصنيفات</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card animate-in delay-2">
+      <div class="table-container">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>التصنيف</th>
+              <th>الوصف</th>
+              <th class="text-center">عدد المنتجات</th>
+              <th class="text-center" style="width:80px">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in categories %}
+            <tr>
+              <td class="fw-semibold" style="font-size:0.9rem;">{{ c.name }}</td>
+              <td style="font-size:0.82rem; color: var(--text-muted);">{{ c.description or '—' }}</td>
+              <td class="text-center">
+                <span class="badge-status" style="background: var(--primary-10); color: var(--primary);">{{ c.products|length }}</span>
+              </td>
+              <td>
+                <div class="d-flex justify-content-center">
+                  {% if current_user.is_admin %}
+                  <button class="btn-action btn-del" title="حذف"
+                          data-id="{{ c.id }}" data-name="{{ c.name }}" data-count="{{ c.products|length }}"
+                          onclick="confirmDelete(+this.dataset.id, this.dataset.name, +this.dataset.count)">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4">
+                <div class="empty-state">
+                  <i class="bi bi-tags"></i>
+                  <p>لا توجد تصنيفات بعد</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form method="POST" id="deleteForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(id, name, count) {
+  if (count > 0) {
+    showToast('لا يمكن حذف تصنيف مرتبط بمنتجات', 'danger');
+    return;
+  }
+  if (!confirm(`هل تريد حذف التصنيف "${name}"؟`)) return;
+  const f = document.getElementById('deleteForm');
+  f.action = `/products/categories/${id}/delete`;
+  f.submit();
+}
+</script>
+{% endblock %}

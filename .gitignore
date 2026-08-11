@@ -1,0 +1,49 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# === Virtual environment ===
+venv/
+.env
+
+# === بيانات التطبيق الحساسة (لا تُنشر أبدًا) ===
+instance/
+logs/
+backups/
+exports/
+uploads/
+*.db
+*.sqlite
+.secret_key
+
+# === ملفات البيانات المرفوعة / المستوردة ===
+*.xlsx
+*.xls
+*.csv
+
+# === مخرجات البناء والتغليف ===
+build_temp/
+dist/
+*.spec
+
+# === متصفح التطبيق ===
+.app_chrome_cache/
+
+# === واتساب / بايلز ===
+baileys_service/node_modules/
+baileys_service/auth_session/
+baileys_service/baileys.log
+baileys_service/package-lock.json
+
+# === نظام التشغيل ===
+Thumbs.db
+desktop.ini
+
+# === ملفات مؤقتة ===
+*.tmp
+*.crdownload
+~$*

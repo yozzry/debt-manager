@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}القيود - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-journal-richtext text-primary"></i> القيود المحاسبية</h5>
+    <div class="text-muted" style="font-size:0.8rem;">مجموع القيود المعروضة: {{ "{:,.2f}".format(total_debits) }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('accounts.ledger') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-book-half"></i>دفتر الأستاذ</a>
+    <a href="{{ url_for('accounts.trial_balance') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-scale"></i>ميزان المراجعة</a>
+    <a href="{{ url_for('accounts.balance_sheet') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-clipboard-data"></i>الميزانية العمومية</a>
+    <a href="{{ url_for('accounts.income_statement') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up-arrow"></i>قائمة الدخل</a>
+    {% if current_user.can_edit %}
+    <a href="{{ url_for('accounts.entry_add') }}" class="btn btn-success btn-sm"><i class="bi bi-plus-lg"></i>قيد جديد</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card animate-in delay-1">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('accounts.entries') }}" class="row g-2 align-items-center">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="بحث برقم القيد أو البيان..." value="{{ search }}">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="from" class="form-control" value="{{ date_from }}">
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="to" class="form-control" value="{{ date_to }}">
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i>بحث</button>
+        {% if search or date_from or date_to %}
+        <a href="{{ url_for('accounts.entries') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-3 animate-in delay-2">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>رقم القيد</th>
+          <th class="text-center">التاريخ</th>
+          <th>البيان</th>
+          <th class="text-center">عدد البنود</th>
+          <th class="text-center">الإجمالي</th>
+          <th class="text-center">الحالة</th>
+          <th style="width:80px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('accounts.entry_detail', eid=e.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);" dir="ltr">
+              {{ e.entry_number }}
+            </a>
+          </td>
+          <td class="text-center">{{ e.date.strftime('%Y-%m-%d') if e.date }}</td>
+          <td>{{ e.description }}</td>
+          <td class="text-center">{{ e.lines|length }}</td>
+          <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(e.total) }}</td>
+          <td class="text-center">
+            {% if e.is_balanced %}
+            <span class="badge-status badge-paid">متوازن</span>
+            {% else %}
+            <span class="badge-status badge-draft">غير متوازن</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <a href="{{ url_for('accounts.entry_detail', eid=e.id) }}" class="btn-action btn-view" title="التفاصيل"><i class="bi bi-eye"></i></a>
+            {% if current_user.is_admin %}
+            <form method="POST" action="{{ url_for('accounts.entry_delete', eid=e.id) }}" class="d-inline"
+                  onsubmit="return confirm('حذف القيد {{ e.entry_number }} نهائياً؟')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-action" style="color: var(--danger);" title="حذف"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">لا توجد قيود مطابقة</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination and pagination.pages > 1 %}
+<nav class="mt-3 animate-in delay-3">
+  <ul class="pagination justify-content-center">
+    {% if pagination.has_prev %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('accounts.entries', page=pagination.prev_num, q=search, from=date_from, to=date_to) }}"><i class="bi bi-chevron-right"></i></a></li>
+    {% endif %}
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+      {% if p %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="{{ url_for('accounts.entries', page=p, q=search, from=date_from, to=date_to) }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('accounts.entries', page=pagination.next_num, q=search, from=date_from, to=date_to) }}"><i class="bi bi-chevron-left"></i></a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

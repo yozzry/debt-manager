@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}دفتر الأستاذ - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-book-half text-primary"></i> دفتر الأستاذ</h5>
+    <div class="text-muted" style="font-size:0.8rem;">كشف حساب عام لكل الحسابات مع الرصيد الجاري</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('accounts.ledger_pdf', account_id=selected_account_id, from=date_from, to=date_to) }}"
+       class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf"></i>طباعة PDF</a>
+    <a href="{{ url_for('accounts.trial_balance') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-scale"></i>ميزان المراجعة</a>
+    <a href="{{ url_for('accounts.balance_sheet') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-clipboard-data"></i>الميزانية العمومية</a>
+    <a href="{{ url_for('accounts.income_statement') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up-arrow"></i>قائمة الدخل</a>
+    <a href="{{ url_for('accounts.cash_flow') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-cash-stack"></i>التدفقات النقدية</a>
+    <a href="{{ url_for('accounts.analytics') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-bar-chart-line"></i>التحليلات</a>
+    <a href="{{ url_for('accounts.entries') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-journal-richtext"></i>القيود</a>
+  </div>
+</div>
+
+<div class="card animate-in delay-1">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('accounts.ledger') }}" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1" style="font-size:0.8rem;">الحساب</label>
+        <select name="account_id" class="form-select">
+          <option value="">كل الحسابات</option>
+          {% for a in accounts %}
+          <option value="{{ a.id }}" {{ 'selected' if selected_account_id == a.id }}>{{ a.code }} - {{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label mb-1" style="font-size:0.8rem;">من تاريخ</label>
+        <input type="date" name="from" class="form-control" value="{{ date_from }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label mb-1" style="font-size:0.8rem;">إلى تاريخ</label>
+        <input type="date" name="to" class="form-control" value="{{ date_to }}">
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i>عرض</button>
+        {% if selected_account_id or date_from or date_to %}
+        <a href="{{ url_for('accounts.ledger') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-3 animate-in delay-2">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>الحساب</th>
+          <th>القيد</th>
+          <th class="text-center">التاريخ</th>
+          <th class="text-center">مدين</th>
+          <th class="text-center">دائن</th>
+          <th class="text-center">الرصيد الجاري</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set le = row.le %}
+        {% if loop.first or le.account_id != rows[loop.index0 - 1].le.account_id %}
+        <tr class="table-light">
+          <td colspan="7" class="py-1">
+            <span class="fw-bold" style="color: var(--primary);">
+              <a href="{{ url_for('accounts.account_detail', aid=le.account_id) }}" class="text-decoration-none" style="color: var(--primary);">
+                {{ le.account.code }} - {{ le.account.name }}
+              </a>
+            </span>
+            <span class="text-muted ms-2" style="font-size:0.75rem;">{{ le.account.type_label }} — طبيعة: {{ le.account.normal_balance_label }}</span>
+          </td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td class="text-muted" style="font-size:0.85rem">{{ le.account.code }}</td>
+          <td>
+            <a href="{{ url_for('accounts.entry_detail', eid=le.entry_id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);" dir="ltr">
+              {{ le.entry.entry_number }}
+            </a>
+          </td>
+          <td class="text-center">{{ le.date.strftime('%Y-%m-%d') if le.date }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(le.debit) if le.debit else '' }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(le.credit) if le.credit else '' }}</td>
+          <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(row.running) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">لا توجد حركات في دفتر الأستاذ</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination and pagination.pages > 1 %}
+<nav class="mt-3 animate-in delay-3">
+  <ul class="pagination justify-content-center">
+    {% if pagination.has_prev %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('accounts.ledger', page=pagination.prev_num, account_id=selected_account_id, from=date_from, to=date_to) }}"><i class="bi bi-chevron-right"></i></a></li>
+    {% endif %}
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+      {% if p %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="{{ url_for('accounts.ledger', page=p, account_id=selected_account_id, from=date_from, to=date_to) }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('accounts.ledger', page=pagination.next_num, account_id=selected_account_id, from=date_from, to=date_to) }}"><i class="bi bi-chevron-left"></i></a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

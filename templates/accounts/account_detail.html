@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}حساب {{ account.code }} - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('accounts.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <div>
+      <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+        <i class="bi bi-book text-primary"></i>{{ account.code }} — {{ account.name }}
+        {% if not account.is_active %}<span class="badge-status badge-draft">غير نشط</span>{% endif %}
+      </h5>
+      <div class="text-muted" style="font-size:0.8rem;">{{ account.type_label }}
+        {% if account.parent %}(فرع من {{ account.parent.code }} - {{ account.parent.name }}){% endif %}</div>
+    </div>
+  </div>
+  {% if current_user.can_edit and account.is_leaf %}
+  <a href="{{ url_for('accounts.account_edit', aid=account.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i>تعديل</a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 animate-in delay-1">
+    <div class="stat-card" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
+      <div class="stat-icon"><i class="bi bi-journal-text"></i></div>
+      <div class="stat-value">{{ "{:,.2f}".format(opening) }}</div>
+      <div class="stat-label">الرصيد الافتتاحي</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #0891b2, #155e75)">
+      <div class="stat-icon"><i class="bi bi-plus-slash-minus"></i></div>
+      <div class="stat-value">{{ "{:,.2f}".format(final_balance) }}</div>
+      <div class="stat-label">الرصيد الحالي</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #059669, #047857)">
+      <div class="stat-icon"><i class="bi bi-arrow-down-up"></i></div>
+      <div class="stat-value">{{ rows|length }}</div>
+      <div class="stat-label">عدد الحركات</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-diagram-3"></i></div>
+      <div class="stat-value">{{ account.normal_balance_label }}</div>
+      <div class="stat-label">طبيعة الرصيد</div>
+    </div>
+  </div>
+</div>
+
+<div class="card animate-in delay-2">
+  <div class="card-header py-3"><span class="fw-semibold">كشف الحساب</span></div>
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>القيد</th>
+          <th class="text-center">التاريخ</th>
+          <th class="text-center">مدين</th>
+          <th class="text-center">دائن</th>
+          <th class="text-center">الرصيد الجاري</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">—</td>
+          <td colspan="3" class="text-muted">الرصيد الافتتاحي</td>
+          <td></td>
+          <td class="text-center fw-semibold">{{ "{:,.2f}".format(opening) }}</td>
+        </tr>
+        {% for row in rows %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('accounts.entry_detail', eid=row.line.entry_id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);" dir="ltr">
+              {{ row.line.entry.entry_number }}
+            </a>
+            <div class="text-muted" style="font-size:0.75rem;">{{ row.line.entry.description }}</div>
+          </td>
+          <td class="text-center">{{ row.line.entry.date.strftime('%Y-%m-%d') if row.line.entry.date }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(row.debit) if row.debit else '' }}</td>
+          <td class="text-center">{{ "{:,.2f}".format(row.credit) if row.credit else '' }}</td>
+          <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(row.running) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">لا توجد حركات على هذا الحساب</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

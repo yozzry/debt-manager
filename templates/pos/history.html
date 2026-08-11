@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}سجل المبيعات - نقطة البيع{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('pos.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history text-primary"></i> سجل المبيعات</h5>
+  </div>
+  {% if current_user.can_edit or current_user.can_pos %}
+  <a href="{{ url_for('pos.index') }}" class="btn btn-success btn-sm"><i class="bi bi-plus-lg"></i>بيع جديد</a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 animate-in delay-1">
+    <div class="stat-card" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
+      <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+      <div class="stat-value">{{ stats.today_count }}</div>
+      <div class="stat-label">مبيعات اليوم</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #059669, #047857)">
+      <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(stats.today_total) }}</div>
+      <div class="stat-label">قيمة اليوم</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #0891b2, #155e75)">
+      <div class="stat-icon"><i class="bi bi-bag-check"></i></div>
+      <div class="stat-value">{{ stats.total_sales }}</div>
+      <div class="stat-label">إجمالي المبيعات</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-cash"></i></div>
+      <div class="stat-value">{{ stats.cash_count }}</div>
+      <div class="stat-label">بيوع نقدية</div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4 animate-in delay-2">
+  <div class="card-body py-3">
+    <form method="GET" action="{{ url_for('pos.history') }}" class="row g-2 align-items-center">
+      <div class="col-12 col-md-4">
+        <div class="input-group">
+          <span class="input-group-text" style="border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--card-bg); border-color: var(--border);">
+            <i class="bi bi-search" style="color: var(--text-muted)"></i>
+          </span>
+          <input type="text" name="q" value="{{ search }}" class="form-control"
+                 placeholder="بحث برقم الفاتورة أو اسم العميل..."
+                 style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0;">
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <input type="date" name="from" value="{{ date_from }}" class="form-control" title="من تاريخ">
+      </div>
+      <div class="col-6 col-md-2">
+        <input type="date" name="to" value="{{ date_to }}" class="form-control" title="إلى تاريخ">
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="status" class="form-select">
+          <option value="" {{ 'selected' if not status_filter }}>كل الحالات</option>
+          <option value="completed" {{ 'selected' if status_filter=='completed' }}>مكتملة</option>
+          <option value="cancelled" {{ 'selected' if status_filter=='cancelled' }}>ملغاة</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <button class="btn btn-primary w-100"><i class="bi bi-funnel"></i>تصفية</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card animate-in delay-3">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>رقم الفاتورة</th>
+          <th>العميل</th>
+          <th class="text-center">التاريخ</th>
+          <th class="text-center">طريقة الدفع</th>
+          <th class="text-center">الخصم</th>
+          <th class="text-center">الإجمالي</th>
+          <th class="text-center">الحالة</th>
+          <th class="text-center" style="width:130px">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sales %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+          <td>
+            <a href="{{ url_for('pos.sale_detail', sid=s.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ s.invoice_number }}
+            </a>
+          </td>
+          <td style="font-size:0.85rem;">{{ s.client.name if s.client else '—' }}</td>
+          <td class="text-center" style="font-size:0.85rem;">{{ s.date.strftime('%Y-%m-%d') if s.date }}</td>
+          <td class="text-center">
+            <span class="badge-status" style="background: var(--primary-10); color: var(--primary);">{{ s.payment_method_label }}</span>
+          </td>
+          <td class="text-center" style="font-size:0.85rem;">{{ "{:,.2f}".format(s.discount or 0) }}</td>
+          <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(s.total or 0) }}</td>
+          <td class="text-center">
+            <span class="badge-status {{ 'badge-paid' if s.status=='completed' }}"
+                  style="{{ 'background: var(--danger-light); color: var(--danger);' if s.status=='cancelled' }}">
+              {{ s.status_label }}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center">
+              <a href="{{ url_for('pos.sale_detail', sid=s.id) }}" class="btn-action btn-view" title="التفاصيل">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{{ url_for('pos.receipt', sid=s.id) }}" class="btn-action" title="الإيصال" style="color: var(--info);">
+                <i class="bi bi-receipt"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9">
+            <div class="empty-state"><i class="bi bi-cart3"></i><p>لا توجد مبيعات</p></div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination.pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+  <ul class="pagination mb-0">
+    {% if pagination.has_prev %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.prev_num }}&q={{ search|urlencode }}&status={{ status_filter|urlencode }}&from={{ date_from }}&to={{ date_to }}">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </li>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="?page={{ p }}&q={{ search|urlencode }}&status={{ status_filter|urlencode }}&from={{ date_from }}&to={{ date_to }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.next_num }}&q={{ search|urlencode }}&status={{ status_filter|urlencode }}&from={{ date_from }}&to={{ date_to }}">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

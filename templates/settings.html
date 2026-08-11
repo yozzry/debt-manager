@@ -1,0 +1,845 @@
+{% extends 'base.html' %}
+{% block title %}الإعدادات{% endblock %}
+
+{% block extra_css %}
+<style>
+  .settings-nav {
+    display: flex;
+    gap: 6px;
+    flex-direction: column;
+  }
+  .settings-nav .nav-item {
+    display: block;
+  }
+  .settings-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.7rem 1rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: var(--transition);
+    text-decoration: none;
+    background: transparent;
+  }
+  .settings-nav .nav-link:hover { background: var(--primary-10); color: var(--primary); }
+  .settings-nav .nav-link.active {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+  }
+  .settings-nav .nav-link i { font-size: 1.1rem; width: 20px; text-align: center; }
+
+  /* QR Widget */
+  .qr-widget {
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+  .qr-widget.state-connected { border-color: var(--success); background: rgba(5,150,105,0.04); }
+  .qr-widget.state-qr { border-color: var(--warning); background: rgba(217,119,6,0.04); }
+  .qr-widget.state-disconnected { border-color: var(--danger); background: rgba(220,38,38,0.03); }
+
+  .qr-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: var(--radius-pill);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .qr-status-badge.connected { background: var(--success-light); color: var(--success); }
+  .qr-status-badge.qr { background: var(--warning-light); color: var(--warning); }
+  .qr-status-badge.disconnected { background: var(--danger-light); color: var(--danger); }
+  .qr-status-badge.unknown { background: var(--border-light); color: var(--text-muted); }
+
+  .qr-image-wrap {
+    position: relative;
+    display: inline-block;
+    margin: 1rem 0;
+  }
+  .qr-image-wrap img {
+    width: 220px;
+    height: 220px;
+    border-radius: 16px;
+    border: 4px solid var(--primary);
+    box-shadow: 0 8px 30px rgba(79,70,229,0.2);
+  }
+  .qr-timer-bar {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .qr-timer-bar .fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 1s linear;
+    width: 100%;
+  }
+  .qr-instructions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--primary-10);
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 1rem;
+    margin-top: 0.8rem;
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+  .qr-instructions i { color: var(--primary); font-size: 1.1rem; flex-shrink: 0; }
+
+  .connected-animation {
+    animation: connectPulse 0.6s ease;
+  }
+  @keyframes connectPulse {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="section-header animate-in">
+  <h5><i class="bi bi-sliders text-primary"></i>الإعدادات</h5>
+</div>
+
+<div class="row g-4">
+  <!-- Sidebar Nav -->
+  <div class="col-12 col-md-3 animate-in delay-1">
+    <div class="card p-2">
+      <nav class="settings-nav">
+        <a class="nav-link {{ 'active' if active_tab=='general' }}" href="?tab=general">
+          <i class="bi bi-globe"></i>عام
+        </a>
+        <a class="nav-link {{ 'active' if active_tab=='whatsapp' }}" href="?tab=whatsapp">
+          <i class="bi bi-whatsapp"></i>واتساب
+        </a>
+        <a class="nav-link {{ 'active' if active_tab=='reminder' }}" href="?tab=reminder">
+          <i class="bi bi-bell"></i>التذكير التلقائي
+        </a>
+        <a class="nav-link {{ 'active' if active_tab=='templates' }}" href="?tab=templates">
+          <i class="bi bi-chat-text"></i>قوالب الرسائل
+        </a>
+        <a class="nav-link {{ 'active' if active_tab=='database' }}" href="?tab=database">
+          <i class="bi bi-database"></i>إدارة قاعدة البيانات
+        </a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="col-12 col-md-9">
+    <div class="card animate-in delay-2">
+      <div class="card-body p-4">
+
+        {% if active_tab == 'general' %}
+        <h6 class="fw-bold mb-4 d-flex align-items-center gap-2">
+          <i class="bi bi-globe text-primary" style="font-size:1.2rem"></i>الإعدادات العامة
+        </h6>
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="tab" value="general">
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">الدولة</label>
+            <select name="app_country" class="form-select" id="countrySelect" onchange="onCountryChange()">
+              <option value="EG" {{ 'selected' if app_settings.country=='EG' }}>مصر</option>
+              <option value="SA" {{ 'selected' if app_settings.country=='SA' }}>السعودية</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">اسم المنشأة / الشركة</label>
+            <input type="text" name="company_name" class="form-control" id="companyNameInput"
+                   value="{{ app_settings.company_name }}" placeholder="مثال: مؤسسة النور التجارية">
+            <div class="form-text">يظهر على رأس التقارير المالية (الميزانية، قائمة الدخل، التدفقات النقدية، التقرير الشامل، دفتر الأستاذ، كشف حساب العميل)</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">المنطقة الزمنية</label>
+            <select name="app_timezone" class="form-select" id="tzSelect">
+              <option value="Africa/Cairo" {{ 'selected' if app_settings.timezone=='Africa/Cairo' }}>مصر (Africa/Cairo)</option>
+              <option value="Asia/Riyadh" {{ 'selected' if app_settings.timezone=='Asia/Riyadh' }}>السعودية (Asia/Riyadh)</option>
+            </select>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label">العملة (اسم كامل)</label>
+              <input type="text" name="app_currency" class="form-control" id="currencyInput"
+                     value="{{ app_settings.currency }}" placeholder="جنيه مصري">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">العملة (اختصار)</label>
+              <input type="text" name="app_currency_short" class="form-control" id="currencyShortInput"
+                     value="{{ app_settings.currency_short }}" placeholder="ج.م">
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label">كود الدولة للهاتف</label>
+            <div class="input-group">
+              <span class="input-group-text" id="phoneCodeAddon">+{{ app_settings.phone_code }}</span>
+              <input type="text" class="form-control" disabled value="يُضاف تلقائياً عند إدخال الأرقام"
+                     style="background: var(--border-light);">
+            </div>
+            <div class="form-text">سيظهر كود الدولة في نماذج إضافة وتعديل العملاء</div>
+          </div>
+
+          <hr style="border-color: var(--border);">
+
+          <div class="d-flex align-items-center justify-content-between p-3 mb-4"
+               style="background: var(--danger-light); border-radius: var(--radius); border: 1px solid rgba(220,38,38,0.15);">
+            <div>
+              <div class="fw-semibold" style="font-size:0.92rem; color: var(--danger);">
+                <i class="bi bi-lock-fill me-1"></i>قفل تسجيل الدخول
+              </div>
+              <div class="form-text" style="margin-top:2px;">
+                عند التفعيل، يُطلب كلمة مرور المدير لفتح النظام (الوضع الآمن)
+              </div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="login_locked" id="loginLocked"
+                     value="on" {{ 'checked' if login_locked == 'true' }}
+                     onchange="document.getElementById('lockWarning').style.display = this.checked ? 'block' : 'none'">
+            </div>
+          </div>
+          <div id="lockWarning" class="alert alert-danger d-none"
+               style="{{ '' if login_locked == 'true' else 'display:none !important;' }} font-size:0.85rem;">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <strong>تحذير:</strong> تسجيل الدخول مقفل حالياً. لن يتمكن أحد من الدخول دون إدخال كلمة مرور المدير.
+          </div>
+
+          <div class="p-3 mb-4" style="background: var(--surface-alt, #f8fafc); border-radius: var(--radius); border: 1px solid rgba(15,23,42,0.08);">
+            <div class="fw-semibold mb-1" style="font-size:0.92rem;">
+              <i class="bi bi-printer me-1" style="color: var(--primary);"></i>الطباعة الحرارية (نقطة البيع)
+            </div>
+            <div class="form-text mb-2">
+              اكتب اسم الطابعة الحرارية كما يظهر في «الأجهزة والطابعات» (مثال: TM-T20). اتركه فارغاً لتعطيل الطباعة.
+            </div>
+            <input type="text" name="pos_printer_name" class="form-control"
+                   value="{{ pos_printer_name }}" placeholder="اسم الطابعة الحرارية (اختياري)">
+          </div>
+
+          <div class="p-3 mb-4" style="background: var(--surface-alt, #f8fafc); border-radius: var(--radius); border: 1px solid rgba(15,23,42,0.08);">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="auto_accounting_enabled"
+                     id="autoAccountingToggle" value="1"
+                     {{ 'checked' if auto_accounting_enabled }}>
+              <label class="form-check-label fw-semibold" for="autoAccountingToggle" style="font-size:0.92rem;">
+                <i class="bi bi-journal-check me-1" style="color: var(--primary);"></i>
+                الربط التلقائي بالمحاسبة (قيد مزدوج)
+              </label>
+            </div>
+            <div class="form-text mt-2">
+              عند التفعيل: تُنشأ قيود يومية تلقائياً لكل بيع واستلام أمر شراء ودفعة (بعد إعداد دليل الحسابات).
+              تُعكس تلقائياً عند إلغاء البيع أو حذف الدفعة.
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i>حفظ الإعدادات العامة
+          </button>
+        </form>
+
+        <script>
+        const countryDefaults = {
+          EG: { tz: 'Africa/Cairo', currency: 'جنيه مصري', currencyShort: 'ج.م', phoneCode: '20' },
+          SA: { tz: 'Asia/Riyadh', currency: 'ريال سعودي', currencyShort: 'ر.س', phoneCode: '966' },
+        };
+        function onCountryChange() {
+          const v = document.getElementById('countrySelect').value;
+          const d = countryDefaults[v];
+          if (!d) return;
+          document.getElementById('tzSelect').value = d.tz;
+          document.getElementById('currencyInput').value = d.currency;
+          document.getElementById('currencyShortInput').value = d.currencyShort;
+          document.getElementById('phoneCodeAddon').textContent = '+' + d.phoneCode;
+        }
+        </script>
+
+        {% elif active_tab == 'whatsapp' %}
+        <h6 class="fw-bold mb-4 d-flex align-items-center gap-2">
+          <i class="bi bi-whatsapp text-success" style="font-size:1.2rem"></i>إعدادات واتساب
+        </h6>
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="tab" value="whatsapp">
+
+          <div class="mb-4">
+            <label class="form-label">عنوان خدمة Baileys</label>
+            <input type="text" name="baileys_url" class="form-control"
+                   value="{{ ws.baileys_url }}" placeholder="http://localhost:3001"
+                   id="baileys_url_input">
+          </div>
+
+          <!-- QR Widget -->
+          <div id="baileys_widget" class="qr-widget" style="margin-bottom:1.2rem">
+            <div class="mb-3">
+              <span id="baileys_status_badge" class="qr-status-badge unknown">
+                <i class="bi bi-question-circle"></i>غير معروف
+              </span>
+            </div>
+
+            <!-- QR -->
+            <div id="qr_container" style="display:none">
+              <div class="qr-image-wrap">
+                <img id="qr_img" src="" alt="QR Code">
+                <div class="qr-timer-bar"><div class="fill" id="qr_progress"></div></div>
+              </div>
+              <p id="qr_timer" style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.6rem;"></p>
+              <div class="qr-instructions">
+                <i class="bi bi-phone"></i>
+                <span>افتح واتساب → الإعدادات → الأجهزة المرتبطة → ربط جهاز</span>
+              </div>
+            </div>
+
+            <!-- Connected -->
+            <div id="connected_msg" style="display:none; padding: 1rem 0;">
+              <div class="connected-animation" style="font-size:3rem; color: var(--success);">✓</div>
+              <div class="fw-bold mt-2" style="font-size:1.1rem; color: var(--success);">متصل بواتساب بنجاح</div>
+              <div style="color: var(--text-muted); font-size:0.85rem; margin-top:0.3rem;">يمكنك الآن إرسال الرسائل</div>
+            </div>
+
+            <!-- Disconnected -->
+            <div id="disconnected_msg" style="display:none; padding: 1.5rem 0;">
+              <i class="bi bi-wifi-off" style="font-size:2.2rem; color: var(--danger); opacity:0.5;"></i>
+              <div style="color: var(--text-muted); font-size:0.88rem; margin-top:0.5rem;">
+                الخدمة غير متاحة — تأكد من تشغيل <code>start_baileys.bat</code>
+              </div>
+            </div>
+
+            <!-- Waiting -->
+            <div id="waiting_msg" style="padding: 1.5rem 0;">
+              <div style="color: var(--text-muted); font-size:0.88rem;">
+                اضغط "تحديث الحالة" لمعرفة حالة الاتصال
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-success btn-sm" onclick="baileysStart()">
+                <i class="bi bi-play-fill"></i>تشغيل الخدمة
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="checkBaileysStatus()">
+                <i class="bi bi-arrow-clockwise"></i>تحديث الحالة
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-sm" onclick="baileysLogout()">
+                <i class="bi bi-box-arrow-right"></i>قطع الاتصال
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary mt-4">
+            <i class="bi bi-check-lg"></i>حفظ إعدادات واتساب
+          </button>
+        </form>
+
+        {% elif active_tab == 'reminder' %}
+        <h6 class="fw-bold mb-4 d-flex align-items-center gap-2">
+          <i class="bi bi-bell text-warning" style="font-size:1.2rem"></i>إعدادات التذكير التلقائي
+        </h6>
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="tab" value="reminder">
+
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="reminder_enabled" id="rem_en"
+                     {{ 'checked' if reminder_enabled=='true' }} style="width:3em; height:1.5em;">
+              <label class="form-check-label fw-semibold" for="rem_en" style="font-size:0.95rem;">تفعيل التذكير التلقائي</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">وقت الإرسال</label>
+            <input type="text" name="reminder_times" class="form-control"
+                   value="{{ reminder_times }}" placeholder="10:00 أو 08:00,15:00">
+            <div class="form-text">وقت واحد أو أكثر مفصولة بفاصلة</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">التردد</label>
+            <select name="reminder_frequency" class="form-select" id="freqSelect" onchange="toggleFreq()">
+              <option value="daily" {{ 'selected' if reminder_frequency=='daily' }}>يومياً</option>
+              <option value="weekly" {{ 'selected' if reminder_frequency=='weekly' }}>أسبوعياً</option>
+              <option value="monthly" {{ 'selected' if reminder_frequency=='monthly' }}>شهرياً</option>
+            </select>
+          </div>
+
+          <div id="weekly_opts" class="mb-3" style="{{ '' if reminder_frequency=='weekly' else 'display:none' }}">
+            <label class="form-label">يوم الأسبوع</label>
+            <select name="reminder_day" class="form-select">
+              <option value="sun" {{ 'selected' if reminder_day=='sun' }}>الأحد</option>
+              <option value="mon" {{ 'selected' if reminder_day=='mon' }}>الاثنين</option>
+              <option value="tue" {{ 'selected' if reminder_day=='tue' }}>الثلاثاء</option>
+              <option value="wed" {{ 'selected' if reminder_day=='wed' }}>الأربعاء</option>
+              <option value="thu" {{ 'selected' if reminder_day=='thu' }}>الخميس</option>
+              <option value="fri" {{ 'selected' if reminder_day=='fri' }}>الجمعة</option>
+              <option value="sat" {{ 'selected' if reminder_day=='sat' }}>السبت</option>
+            </select>
+          </div>
+
+          <div id="monthly_opts" class="mb-3" style="{{ '' if reminder_frequency=='monthly' else 'display:none' }}">
+            <label class="form-label">يوم الشهر</label>
+            <input type="number" name="reminder_dom" class="form-control" min="1" max="28" value="{{ reminder_dom }}">
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label">رابط الدفع <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+            <input type="text" name="payment_link" class="form-control"
+                   value="{{ payment_link }}" placeholder="https://...">
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i>حفظ إعدادات التذكير
+          </button>
+        </form>
+
+        {% elif active_tab == 'templates' %}
+        <h6 class="fw-bold mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-chat-text text-primary" style="font-size:1.2rem"></i>قوالب الرسائل
+        </h6>
+        <div class="alert alert-info d-flex align-items-start gap-2 mb-4" style="border-radius: var(--radius-sm);">
+          <i class="bi bi-lightbulb" style="font-size:1.1rem; margin-top:2px;"></i>
+          <div>
+            <strong>المتغيرات المتاحة:</strong><br>
+            <code style="background:rgba(0,0,0,0.06); padding:2px 6px; border-radius:4px;">{name}</code> اسم العميل &nbsp;
+            <code style="background:rgba(0,0,0,0.06); padding:2px 6px; border-radius:4px;">{balance}</code> الرصيد المستحق
+          </div>
+        </div>
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="tab" value="templates">
+          {% for i in range(1, 4) %}
+          <div class="mb-4">
+            <label class="form-label fw-semibold d-flex align-items-center gap-2">
+              <span style="background: var(--primary); color:#fff; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700;">
+                {{ i }}
+              </span>
+              القالب {{ i }}
+            </label>
+            <textarea name="template_{{ i }}" class="form-control" rows="3"
+                      style="resize: vertical;">{{ [template_1, template_2, template_3][i-1] }}</textarea>
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i>حفظ القوالب
+          </button>
+        </form>
+
+        {% elif active_tab == 'database' %}
+        <h6 class="fw-bold mb-4 d-flex align-items-center gap-2">
+          <i class="bi bi-database text-info" style="font-size:1.2rem"></i>إدارة قاعدة البيانات
+        </h6>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Stats -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <div class="card border-0" style="background: var(--primary-10); border-radius: var(--radius-sm);">
+              <div class="card-body text-center py-3">
+                <div style="font-size:1.5rem; font-weight:800; color: var(--primary);">{{ db_stats.db_size_str }}</div>
+                <div style="font-size:0.78rem; color: var(--text-muted);">حجم قاعدة البيانات</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-0" style="background: rgba(5,150,105,0.06); border-radius: var(--radius-sm);">
+              <div class="card-body text-center py-3">
+                <div style="font-size:1.5rem; font-weight:800; color: var(--success);">{{ db_stats.tables.clients }}</div>
+                <div style="font-size:0.78rem; color: var(--text-muted);">عدد العملاء</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-0" style="background: rgba(217,119,6,0.06); border-radius: var(--radius-sm);">
+              <div class="card-body text-center py-3">
+                <div style="font-size:1.5rem; font-weight:800; color: var(--warning);">{{ db_stats.backups_count }}</div>
+                <div style="font-size:0.78rem; color: var(--text-muted);">النسخ الاحتياطية</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-0" style="background: rgba(99,102,241,0.06); border-radius: var(--radius-sm);">
+              <div class="card-body text-center py-3">
+                <div style="font-size:1.2rem; font-weight:800; color: var(--info);">{{ db_stats.backups_total_size | filesizeformat }}</div>
+                <div style="font-size:0.78rem; color: var(--text-muted);">حجم النسخ الاحتياطية</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table breakdown -->
+        <div class="mb-4">
+          <h6 class="fw-semibold mb-3" style="font-size:0.9rem;">جدول البيانات</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless" style="font-size:0.85rem;">
+              <tbody>
+                {% for tname, tcount in db_stats.tables.items() %}
+                <tr>
+                  <td style="color: var(--text-secondary);">{{ tname }}</td>
+                  <td class="text-end fw-bold">{{ tcount }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <hr style="border-color: var(--border);">
+
+        <!-- Actions -->
+        <h6 class="fw-semibold mb-3" style="font-size:0.9rem;">الإجراءات</h6>
+        <div class="d-flex gap-2 flex-wrap mb-4">
+          <button class="btn btn-primary btn-sm" onclick="dbBackup()">
+            <i class="bi bi-download"></i>إنشاء نسخة احتياطية
+          </button>
+          <a href="{{ url_for('database.db_export') }}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-box-arrow-down"></i>تحميل قاعدة البيانات
+          </a>
+          <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('import_db_input').click()">
+            <i class="bi bi-upload"></i>استيراد قاعدة بيانات
+          </button>
+          <input type="file" id="import_db_input" accept=".db" style="display:none" onchange="dbImport(this)">
+          <button class="btn btn-outline-info btn-sm" onclick="dbIntegrity()">
+            <i class="bi bi-shield-check"></i>فحص السلامة
+          </button>
+          <button class="btn btn-outline-warning btn-sm" onclick="dbOptimize('vacuum')">
+            <i class="bi bi-database-gear"></i>تحسين (Vacuum)
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i>تحديث
+          </button>
+        </div>
+
+        <!-- Integrity Result -->
+        <div id="integrity_result" class="mb-4" style="display:none;"></div>
+
+        <!-- Backups list -->
+        {% if db_stats.backups %}
+        <h6 class="fw-semibold mb-2" style="font-size:0.9rem;">النسخ الاحتياطية المحفوظة</h6>
+        <div class="table-responsive mb-4">
+          <table class="table table-sm" style="font-size:0.83rem;">
+            <thead>
+              <tr>
+                <th>اسم الملف</th>
+                <th>الحجم</th>
+                <th>التاريخ</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in db_stats.backups[:10] %}
+              <tr>
+                <td><code style="font-size:0.78rem;">{{ b.name }}</code></td>
+                <td>{{ (b.size // 1024) }} KB</td>
+                <td>{{ b.modified_str }}</td>
+                <td class="text-end">
+                  <a href="{{ url_for('database.db_download_backup', file=b.name) }}" class="btn btn-outline-primary btn-sm py-0" title="تحميل">
+                    <i class="bi bi-download"></i>
+                  </a>
+                  <button class="btn btn-outline-warning btn-sm py-0" title="استعادة" onclick='dbRestore({{ b.name|tojson }})'>
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm py-0" title="حذف" onclick='dbDeleteBackup({{ b.name|tojson }})'>
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4" style="font-size:0.85rem; border-radius: var(--radius-sm);">
+          <i class="bi bi-info-circle"></i>لا توجد نسخ احتياطية محفوظة
+        </div>
+        {% endif %}
+
+        <hr style="border-color: var(--border);">
+
+        <!-- Danger Zone -->
+        <div style="background: rgba(220,38,38,0.04); border: 1px solid rgba(220,38,38,0.15); border-radius: var(--radius-sm); padding: 1.2rem;">
+          <h6 class="fw-bold mb-2" style="color: var(--danger); font-size:0.9rem;">
+            <i class="bi bi-exclamation-triangle"></i>منطقة الخطر
+          </h6>
+          <p style="font-size:0.83rem; color: var(--text-muted); margin-bottom: 0.8rem;">
+            حذف جميع بيانات العملاء والفواتير والمدفوعات. لن يتم حذف المستخدمين والإعدادات.
+          </p>
+          <button class="btn btn-outline-danger btn-sm" onclick="dbReset()">
+            <i class="bi bi-trash"></i>حذف جميع البيانات
+          </button>
+        </div>
+
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleFreq() {
+  const v = document.getElementById('freqSelect')?.value;
+  if (!v) return;
+  document.getElementById('weekly_opts').style.display = v === 'weekly' ? '' : 'none';
+  document.getElementById('monthly_opts').style.display = v === 'monthly' ? '' : 'none';
+}
+
+function getBaileysUrl() {
+  const inp = document.getElementById('baileys_url_input');
+  return (inp ? inp.value.trim() : 'http://localhost:3001') || 'http://localhost:3001';
+}
+
+function setWidgetState(state, qrSrc) {
+  const widget = document.getElementById('baileys_widget');
+  widget.className = 'qr-widget state-' + state;
+
+  document.getElementById('qr_container').style.display    = state === 'qr'           ? '' : 'none';
+  document.getElementById('connected_msg').style.display   = state === 'connected'    ? '' : 'none';
+  document.getElementById('disconnected_msg').style.display= state === 'disconnected' ? '' : 'none';
+  document.getElementById('waiting_msg').style.display     = state === 'waiting'      ? '' : 'none';
+
+  const badge = document.getElementById('baileys_status_badge');
+  const configs = {
+    connected:    { cls: 'connected', icon: 'bi-check-circle-fill', text: 'متصل' },
+    qr:           { cls: 'qr', icon: 'bi-camera', text: 'في انتظار المسح' },
+    disconnected: { cls: 'disconnected', icon: 'bi-x-circle-fill', text: 'غير متصل' },
+    waiting:      { cls: 'unknown', icon: 'bi-question-circle', text: 'غير معروف' },
+  };
+  const c = configs[state] || configs.waiting;
+  badge.className = `qr-status-badge ${c.cls}`;
+  badge.innerHTML = `<i class="bi ${c.icon}"></i>${c.text}`;
+
+  if (state === 'qr' && qrSrc) {
+    document.getElementById('qr_img').src = qrSrc;
+    startQrTimer();
+  }
+}
+
+let qrTimerInterval = null;
+function startQrTimer() {
+  let secs = 60;
+  clearInterval(qrTimerInterval);
+  const timerEl = document.getElementById('qr_timer');
+  const progressEl = document.getElementById('qr_progress');
+  progressEl.style.width = '100%';
+  qrTimerInterval = setInterval(() => {
+    secs--;
+    timerEl.textContent = `ينتهي الصلاحية بعد ${secs} ثانية`;
+    progressEl.style.width = (secs / 60 * 100) + '%';
+    if (secs <= 0) {
+      clearInterval(qrTimerInterval);
+      checkBaileysStatus();
+    }
+  }, 1000);
+}
+
+let autoRefresh = null;
+async function checkBaileysStatus() {
+  clearInterval(autoRefresh);
+  try {
+    const r = await fetch('/api/whatsapp/status', { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    if (d.connected) {
+      setWidgetState('connected');
+    } else if (d.qr_available && d.qr) {
+      setWidgetState('qr', d.qr);
+      autoRefresh = setInterval(checkBaileysStatus, 55000);
+    } else {
+      setWidgetState('disconnected');
+      autoRefresh = setInterval(checkBaileysStatus, 5000);
+    }
+  } catch(e) {
+    setWidgetState('disconnected');
+    autoRefresh = setInterval(checkBaileysStatus, 5000);
+  }
+}
+
+async function baileysLogout() {
+  if (!confirm('قطع الاتصال وحذف الجلسة؟\nستحتاج مسح QR جديد لإعادة الربط.')) return;
+  try {
+    const fd = new FormData();
+    fd.append('csrf_token', document.querySelector('[name=csrf_token]').value);
+    await fetch('/api/baileys/logout', { method: 'POST', body: fd });
+  } catch(_) {}
+  setWidgetState('waiting');
+  setTimeout(checkBaileysStatus, 2000);
+}
+
+async function baileysStart() {
+  try {
+    const fd = new FormData();
+    fd.append('csrf_token', document.querySelector('[name=csrf_token]').value);
+    const r = await fetch('/api/baileys/start', { method: 'POST', body: fd });
+    const d = await r.json();
+    alert(d.ok ? '✅ ' + d.msg : '❌ ' + d.msg);
+    if (d.ok) {
+      setWidgetState('waiting');
+      setTimeout(checkBaileysStatus, 5000);
+    }
+  } catch(e) { alert('خطأ: ' + e.message); }
+}
+
+// ---------------------------------------------------------------------
+// Database Management
+// ---------------------------------------------------------------------
+
+async function dbBackup() {
+  try {
+    const fd = new FormData();
+    fd.append('csrf_token', getCsrf());
+    const r = await fetch('/api/database/backup', { method: 'POST', body: fd });
+    const d = await r.json();
+    alert(d.ok ? '✅ ' + d.msg : '❌ ' + d.msg);
+    if (d.ok) location.reload();
+  } catch(e) { alert('خطأ: ' + e.message); }
+}
+
+async function dbImport(inputEl) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  if (!file.name.endsWith('.db')) {
+    alert('❌ يجب أن يكون الملف .db');
+    inputEl.value = '';
+    return;
+  }
+  if (!confirm(`استيراد "${file.name}"؟\nسيتم استبدال قاعدة البيانات الحالية.`)) {
+    inputEl.value = '';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('csrf_token', getCsrf());
+  try {
+    const r = await fetch('/api/database/import', { method: 'POST', body: fd });
+    const d = await r.json();
+    alert(d.ok ? '✅ ' + d.msg : '❌ ' + d.msg);
+    if (d.ok) location.reload();
+  } catch(e) { alert('خطأ: ' + e.message); }
+  inputEl.value = '';
+}
+
+async function dbRestore(filename) {
+  if (!confirm(`هل تريد استعادة النسخة الاحتياطية "${filename}"؟\nسيتم استبدال قاعدة البيانات الحالية.`)) return;
+  try {
+    const r = await fetch('/api/database/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ filename })
+    });
+    const d = await r.json();
+    alert(d.ok ? '✅ ' + d.msg : '❌ ' + d.msg);
+    if (d.ok) location.reload();
+  } catch(e) { alert('خطأ: ' + e.message); }
+}
+
+async function dbDeleteBackup(filename) {
+  if (!confirm(`حذف النسخة الاحتياطية "${filename}"؟\nلا يمكن التراجع.`)) return;
+  try {
+    const r = await fetch('/api/database/delete-backup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ filename })
+    });
+    const d = await r.json();
+    alert(d.ok ? '✅ ' + d.msg : '❌ ' + d.msg);
+    if (d.ok) location.reload();
+  } catch(e) { alert('خطأ: ' + e.message); }
+}
+
+async function dbReset() {
+  const txt = prompt('⚠️ حذف جميع بيانات العملاء!\nاكتب DELETE_ALL للتأكيد:');
+  if (txt !== 'DELETE_ALL') { if (txt !== null) alert('التأكيد غير صحيح'); return; }
+  try {
+    const r = await fetch('/api/database/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ confirm: 'DELETE_ALL' })
+    });
+    const d = await r.json();
+    alert(d.ok ? '✅ ' + d.msg : '❌ ' + d.msg);
+    if (d.ok) location.reload();
+  } catch(e) { alert('خطأ: ' + e.message); }
+}
+
+async function dbIntegrity() {
+  const el = document.getElementById('integrity_result');
+  el.style.display = 'block';
+  el.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div> جاري فحص السلامة...</div>';
+  try {
+    const r = await fetch('/api/database/integrity', {
+      headers: { 'X-CSRFToken': getCsrf() }
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const data = d.data;
+      el.className = 'alert alert-success';
+      el.innerHTML = '<strong>✅ قاعدة البيانات سليمة</strong><br>'
+        + 'عدد الصفحات: ' + data.page_count + ' | حجم الصفحة: ' + data.page_size + ' بايت<br>'
+        + 'حجم فعلي: ' + (data.theoretical_size / 1024).toFixed(0) + ' KB'
+        + ' | صفحات حرة: ' + data.freelist_pages
+        + ' | جداول: ' + data.total_tables + ' | فهارس: ' + data.total_indexes;
+    } else {
+      el.className = 'alert alert-danger';
+      el.innerHTML = '<strong>❌ ' + (d.msg || 'فشل الفحص') + '</strong>';
+      if (d.data) {
+        const data = d.data;
+        let msg = '';
+        if (data.integrity_check && data.integrity_check !== 'ok') msg += '<br>Integrity: ' + data.integrity_check;
+        if (data.foreign_key_violations > 0) msg += '<br>FK violations: ' + data.foreign_key_violations;
+        if (data.freelist_pages > 0) msg += '<br>Freelist pages: ' + data.freelist_pages;
+        if (msg) el.innerHTML += msg;
+      }
+    }
+  } catch(e) {
+    el.className = 'alert alert-danger';
+    el.innerHTML = '<strong>❌ خطأ: ' + e.message + '</strong>';
+  }
+}
+
+async function dbOptimize(mode) {
+  const names = { vacuum: 'Vacuum', reindex: 'Reindex', analyze: 'Analyze' };
+  if (!confirm('تشغيل ' + (names[mode] || mode) + ' على قاعدة البيانات؟')) return;
+  try {
+    const r = await fetch('/api/database/optimize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ mode })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      let msg = '✅ ' + d.msg;
+      if (d.saved > 0) msg += ' (وفرت ' + (d.saved / 1024).toFixed(1) + ' KB)';
+      alert(msg);
+      location.reload();
+    } else {
+      alert('❌ ' + d.msg);
+    }
+  } catch(e) { alert('خطأ: ' + e.message); }
+}
+
+{% if active_tab == 'whatsapp' %}
+window.addEventListener('load', () => setTimeout(checkBaileysStatus, 500));
+{% endif %}
+</script>
+{% endblock %}

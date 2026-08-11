@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% block title %}نقطة البيع - المديونيات{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="bi bi-bag-check text-primary"></i> نقطة البيع</h5>
+    <div class="text-muted" style="font-size:0.85rem;">امسح الباركود أو اضغط على المنتج لإضافته للسلة، ثم أكمل البيع</div>
+  </div>
+  <a href="{{ url_for('pos.history') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-clock-history"></i>سجل المبيعات
+  </a>
+</div>
+
+<div class="row g-3">
+  <!-- Products -->
+  <div class="col-12 col-lg-7">
+    <div class="card mb-3 animate-in delay-1">
+      <div class="card-body py-3">
+        <div class="input-group mb-2">
+          <span class="input-group-text" style="border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--card-bg); border-color: var(--border);">
+            <i class="bi bi-upc-scan" style="color: var(--primary);"></i>
+          </span>
+          <input type="text" id="barcodeScan" class="form-control form-control-lg" autofocus
+                 placeholder="امسح الباركود أو أدخل SKU واضغط Enter..." style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size:1rem;">
+        </div>
+        <form method="GET" action="{{ url_for('pos.index') }}" class="d-flex gap-2 mb-0">
+          <div class="input-group flex-grow-1">
+            <span class="input-group-text" style="border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--card-bg); border-color: var(--border);">
+              <i class="bi bi-search" style="color: var(--text-muted)"></i>
+            </span>
+            <input type="text" name="q" value="{{ search }}" class="form-control"
+                   placeholder="بحث بالاسم أو SKU أو الباركود..."
+                   style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0;">
+          </div>
+          <button class="btn btn-primary px-3"><i class="bi bi-search"></i></button>
+        </form>
+      </div>
+    </div>
+
+    <div class="row g-2 animate-in delay-2">
+      {% for p in products %}
+      <div class="col-6 col-md-4 col-xl-3">
+        <button type="button" class="pos-product card w-100 text-start" style="border:1px solid var(--border);"
+                onclick="addProduct({{ p.id }}, '{{ p.name.replace("'", "") }}', {{ p.selling_price or 0 }})">
+          <div class="card-body p-3">
+            <div class="fw-semibold text-truncate" style="font-size:0.9rem;">{{ p.name }}</div>
+            <div class="text-muted" style="font-size:0.75rem;">{{ p.sku or p.barcode or '—' }}</div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span class="fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(p.selling_price or 0) }}</span>
+              <span class="badge-status {{ 'badge-due' if p.stock_status=='out' else 'badge-paid' if p.stock_status=='low' }}"
+                    style="font-size:0.65rem;">{{ "{:g}".format(p.current_stock or 0) }}</span>
+            </div>
+          </div>
+        </button>
+      </div>
+      {% else %}
+      <div class="col-12">
+        <div class="empty-state"><i class="bi bi-box-seam"></i><p>لا توجد منتجات نشطة</p></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Cart -->
+  <div class="col-12 col-lg-5">
+    <div class="card animate-in delay-2 sticky-cart">
+      <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-cart3"></i> السلة</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearCart()"><i class="bi bi-trash3"></i>تفريغ</button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-2" id="cartTable">
+            <thead>
+              <tr>
+                <th>المنتج</th>
+                <th class="text-center" style="width:90px">السعر</th>
+                <th class="text-center" style="width:70px">الكمية</th>
+                <th class="text-center" style="width:90px">الإجمالي</th>
+                <th style="width:30px"></th>
+              </tr>
+            </thead>
+            <tbody id="cartBody">
+              <tr id="emptyRow"><td colspan="5"><div class="empty-state py-3"><i class="bi bi-cart"></i><p>السلة فارغة</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <form method="POST" action="{{ url_for('pos.complete') }}" id="saleForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div id="cartInputs"></div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label" style="font-size:0.8rem;">نوع الخصم</label>
+              <select name="discount_type" id="discountType" class="form-select form-select-sm" onchange="updateTotals()">
+                <option value="amount">مبلغ</option>
+                <option value="percent">نسبة %</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:0.8rem;">قيمة الخصم</label>
+              <input type="number" step="0.01" min="0" name="discount_value" id="discountValue"
+                     class="form-control form-control-sm" value="0" oninput="updateTotals()">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:0.8rem;">طريقة الدفع</label>
+              <select name="payment_method" id="paymentMethod" class="form-select form-select-sm" onchange="toggleClient()">
+                <option value="cash">نقدي</option>
+                <option value="credit">آجل</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:0.8rem;">العميل <span id="clientRequired" style="display:none;color:var(--danger);">*</span></label>
+              <select name="client_id" id="clientId" class="form-select form-select-sm">
+                <option value="">بدون عميل</option>
+                {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center p-3 rounded-3 mb-3" style="background: var(--bg); border: 1px dashed var(--border);">
+            <span class="text-muted">الإجمالي</span>
+            <div class="text-start">
+              <div class="text-muted text-decoration-line-through" style="font-size:0.75rem;" id="subtotalLabel">0.00</div>
+              <div class="fw-bold fs-4" style="color: var(--primary);" id="totalLabel">0.00</div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" style="font-size:0.8rem;">ملاحظات (اختياري)</label>
+            <textarea name="notes" class="form-control" rows="1"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-success w-100 py-2" id="submitBtn">
+            <i class="bi bi-check-lg"></i>إتمام البيع
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.pos-product { transition: transform .15s ease, box-shadow .15s ease; cursor: pointer; }
+.pos-product:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.sticky-cart { position: sticky; top: 76px; }
+@media (max-width: 991px) { .sticky-cart { position: static; } }
+</style>
+<script>
+const cart = {};
+
+document.getElementById('barcodeScan').addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = this.value.trim();
+  if (!q) return;
+  fetch('/pos/api/product?q=' + encodeURIComponent(q))
+    .then(r => r.json().then(p => ({ ok: r.ok, p })))
+    .then(({ ok, p }) => {
+      if (!ok || p.error) {
+        alert('لم يُعثر على منتج: ' + q);
+      } else {
+        addProduct(p.id, p.name, p.selling_price);
+      }
+      this.value = '';
+      this.focus();
+    })
+    .catch(() => { this.value = ''; this.focus(); });
+});
+
+function addProduct(id, name, price) {
+  if (cart[id]) {
+    cart[id].qty = (parseFloat(cart[id].qty) + 1).toFixed(2);
+  } else {
+    cart[id] = { id, name, price: price.toFixed(2), qty: '1' };
+  }
+  renderCart();
+}
+function removeProduct(id) {
+  delete cart[id];
+  renderCart();
+}
+function setQty(id, qty) {
+  qty = parseFloat(qty) || 0;
+  if (qty <= 0) { delete cart[id]; }
+  else { cart[id].qty = qty.toFixed(2); }
+  renderCart();
+}
+function clearCart() {
+  Object.keys(cart).forEach(k => delete cart[k]);
+  renderCart();
+}
+function rowTotal(item) { return (parseFloat(item.qty) * parseFloat(item.price)) || 0; }
+function subtotal() {
+  return Object.values(cart).reduce((s, it) => s + rowTotal(it), 0);
+}
+function discountAmount() {
+  const sub = subtotal();
+  const val = parseFloat(document.getElementById('discountValue').value) || 0;
+  const type = document.getElementById('discountType').value;
+  let disc = type === 'percent' ? sub * val / 100 : val;
+  disc = Math.min(Math.max(disc, 0), sub);
+  return disc;
+}
+function updateTotals() {
+  const sub = subtotal();
+  const disc = discountAmount();
+  const total = sub - disc;
+  document.getElementById('subtotalLabel').textContent = sub.toFixed(2);
+  document.getElementById('totalLabel').textContent = total.toFixed(2);
+}
+function toggleClient() {
+  const isCredit = document.getElementById('paymentMethod').value === 'credit';
+  document.getElementById('clientRequired').style.display = isCredit ? 'inline' : 'none';
+  document.getElementById('clientId').required = isCredit;
+}
+function renderCart() {
+  const tbody = document.getElementById('cartBody');
+  const empty = document.getElementById('emptyRow');
+  tbody.querySelectorAll('[data-cartrow]').forEach(r => r.remove());
+  Object.values(cart).forEach(it => {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-cartrow', '1');
+    tr.innerHTML = `
+      <td class="fw-semibold" style="font-size:0.85rem;">${it.name}</td>
+      <td class="text-center" style="font-size:0.85rem;"><input type="number" step="0.01" min="0" class="form-control form-control-sm text-center"
+        value="${it.price}" onchange="setPrice(${it.id}, this.value)"></td>
+      <td class="text-center"><input type="number" step="0.01" min="0.01" class="form-control form-control-sm text-center"
+        value="${it.qty}" onchange="setQty(${it.id}, this.value)"></td>
+      <td class="text-center fw-bold" style="font-size:0.85rem;">${rowTotal(it).toFixed(2)}</td>
+      <td class="text-center"><button type="button" class="btn-action btn-del" onclick="removeProduct(${it.id})"><i class="bi bi-x-lg"></i></button></td>`;
+    tbody.appendChild(tr);
+  });
+  empty.style.display = Object.keys(cart).length ? 'none' : '';
+  updateTotals();
+}
+function setPrice(id, price) {
+  cart[id].price = (parseFloat(price) || 0).toFixed(2);
+  renderCart();
+}
+document.getElementById('saleForm').addEventListener('submit', function (e) {
+  const box = document.getElementById('cartInputs');
+  box.innerHTML = '';
+  if (!Object.keys(cart).length) {
+    e.preventDefault();
+    alert('السلة فارغة — أضف منتجات أولاً');
+    return;
+  }
+  Object.values(cart).forEach(it => {
+    const inputs = [
+      ['product_id', it.id],
+      ['quantity', it.qty],
+      ['unit_price', it.price],
+    ];
+    inputs.forEach(([n, v]) => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = n;
+      inp.value = v;
+      box.appendChild(inp);
+    });
+  });
+});
+</script>
+{% endblock %}

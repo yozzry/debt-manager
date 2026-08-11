@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تعديل' if order else 'جديد' }} - المشتريات{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-10">
+    <div class="card animate-in">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4 gap-2">
+          <a href="{{ url_for('purchases.order_detail', oid=order.id) if order else url_for('purchases.index') }}"
+             class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+          <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+            <i class="bi bi-cart3 text-primary"></i>
+            {{ 'تعديل أمر الشراء' if order else 'أمر شراء جديد' }}
+          </h5>
+        </div>
+
+        {% if not suppliers %}
+        <div class="alert alert-warning d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle"></i>
+          <span>لا يوجد موردون بعد — أضف مورداً أولاً من صفحة العملاء واختر نوع "مورد".</span>
+          <a href="{{ url_for('clients.client_add') }}" class="btn btn-sm btn-warning ms-auto">إضافة مورد</a>
+        </div>
+        {% endif %}
+
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">المورد <span class="text-danger">*</span></label>
+              <select name="supplier_id" class="form-select" required>
+                <option value="">اختر المورد...</option>
+                {% for s in suppliers %}
+                <option value="{{ s.id }}" {{ 'selected' if (order and order.supplier_id == s.id) }}>{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">التاريخ <span class="text-danger">*</span></label>
+              <input type="date" name="date" class="form-control" required
+                     value="{{ order.date.strftime('%Y-%m-%d') if order and order.date else '' }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">الحالة</label>
+              <input type="text" class="form-control" value="{{ order.status_label if order else 'مسودة' }}" disabled>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="form-label mb-0 fw-semibold">بنود الأمر</label>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow()">
+              <i class="bi bi-plus-lg"></i>إضافة بند
+            </button>
+          </div>
+          <div class="table-responsive mb-3">
+            <table class="table align-middle mb-0" id="itemsTable">
+              <thead>
+                <tr>
+                  <th style="width:60px">#</th>
+                  <th>المنتج <span class="text-danger">*</span></th>
+                  <th class="text-center" style="width:120px">الكمية <span class="text-danger">*</span></th>
+                  <th class="text-center" style="width:150px">سعر التكلفة</th>
+                  <th class="text-center" style="width:120px">الإجمالي</th>
+                  <th style="width:50px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if order and order.items %}
+                  {% for it in order.items %}
+                  <tr>
+                    <td class="text-muted row-index" style="font-size:0.8rem">{{ loop.index }}</td>
+                    <td>
+                      <select name="product_id" class="form-select" required>
+                        <option value="">اختر المنتج...</option>
+                        {% for p in products %}
+                        <option value="{{ p.id }}" {{ 'selected' if it.product_id == p.id }}>{{ p.name }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td><input type="number" step="0.01" min="0.01" name="quantity" class="form-control text-center"
+                               value="{{ '{:g}'.format(it.quantity) }}" required></td>
+                    <td><input type="number" step="0.01" min="0" name="unit_cost" class="form-control text-center"
+                               value="{{ '{:g}'.format(it.unit_cost) }}"></td>
+                    <td class="text-center fw-semibold row-total">0.00</td>
+                    <td class="text-center">
+                      <button type="button" class="btn-action btn-del" title="حذف البند" onclick="removeItemRow(this)"><i class="bi bi-x-lg"></i></button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td class="text-muted row-index" style="font-size:0.8rem">1</td>
+                    <td>
+                      <select name="product_id" class="form-select" required>
+                        <option value="">اختر المنتج...</option>
+                        {% for p in products %}
+                        <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td><input type="number" step="0.01" min="0.01" name="quantity" class="form-control text-center" required></td>
+                    <td><input type="number" step="0.01" min="0" name="unit_cost" class="form-control text-center"></td>
+                    <td class="text-center fw-semibold row-total">0.00</td>
+                    <td class="text-center">
+                      <button type="button" class="btn-action btn-del" title="حذف البند" onclick="removeItemRow(this)"><i class="bi bi-x-lg"></i></button>
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-8">
+              <label class="form-label">ملاحظات <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+              <textarea name="notes" class="form-control" rows="2" placeholder="أي تفاصيل إضافية...">{{ order.notes if order and order.notes else '' }}</textarea>
+            </div>
+            <div class="col-md-4 d-flex flex-column justify-content-end">
+              <div class="d-flex justify-content-between align-items-center p-3 rounded-3" style="background: var(--bg); border: 1px dashed var(--border);">
+                <span class="text-muted">الإجمالي الكلي</span>
+                <span class="fw-bold fs-5" style="color: var(--primary)" id="grandTotal">0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+              <i class="bi bi-check-lg"></i>{{ 'حفظ التعديلات' if order else 'إنشاء الأمر' }}
+            </button>
+            <a href="{{ url_for('purchases.order_detail', oid=order.id) if order else url_for('purchases.index') }}"
+               class="btn btn-outline-secondary">إلغاء</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<template id="itemRowTemplate">
+  <tr>
+    <td class="text-muted row-index" style="font-size:0.8rem">1</td>
+    <td>
+      <select name="product_id" class="form-select" required>
+        <option value="">اختر المنتج...</option>
+        {% for p in products %}
+        <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </td>
+    <td><input type="number" step="0.01" min="0.01" name="quantity" class="form-control text-center" required></td>
+    <td><input type="number" step="0.01" min="0" name="unit_cost" class="form-control text-center"></td>
+    <td class="text-center fw-semibold row-total">0.00</td>
+    <td class="text-center">
+      <button type="button" class="btn-action btn-del" title="حذف البند" onclick="removeItemRow(this)"><i class="bi bi-x-lg"></i></button>
+    </td>
+  </tr>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addItemRow() {
+  const tbody = document.querySelector('#itemsTable tbody');
+  const tpl = document.getElementById('itemRowTemplate');
+  tbody.appendChild(tpl.content.cloneNode(true));
+  reindexRows();
+  updateTotals();
+}
+function removeItemRow(btn) {
+  const rows = document.querySelectorAll('#itemsTable tbody tr');
+  if (rows.length <= 1) return;
+  btn.closest('tr').remove();
+  reindexRows();
+  updateTotals();
+}
+function reindexRows() {
+  document.querySelectorAll('#itemsTable tbody tr').forEach((tr, i) => {
+    tr.querySelector('.row-index').textContent = i + 1;
+  });
+}
+function rowTotal(tr) {
+  const qty = parseFloat(tr.querySelector('[name="quantity"]').value) || 0;
+  const cost = parseFloat(tr.querySelector('[name="unit_cost"]').value) || 0;
+  return qty * cost;
+}
+function updateTotals() {
+  let grand = 0;
+  document.querySelectorAll('#itemsTable tbody tr').forEach(tr => {
+    const t = rowTotal(tr);
+    tr.querySelector('.row-total').textContent = t.toFixed(2);
+    grand += t;
+  });
+  document.getElementById('grandTotal').textContent = grand.toFixed(2);
+}
+document.querySelectorAll('#itemsTable').forEach(tbl => {
+  tbl.addEventListener('input', updateTotals);
+});
+updateTotals();
+</script>
+{% endblock %}

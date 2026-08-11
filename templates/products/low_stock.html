@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}الجرد - المنتجات{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('products.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+  <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+    <i class="bi bi-clipboard-data text-primary"></i>الجرد
+    <span class="badge-status" style="background: var(--warning-light); color: var(--warning); font-size:0.75rem;">
+      {{ products|length }} منتج يحتاج انتباه
+    </span>
+  </h5>
+</div>
+
+<div class="card animate-in">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>المنتج</th>
+          <th>التصنيف</th>
+          <th class="text-center">الرصيد الحالي</th>
+          <th class="text-center">الحد الأدنى</th>
+          <th class="text-center">النقص</th>
+          <th class="text-center">الحالة</th>
+          <th class="text-center" style="width:110px">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        {% set shortage = (p.min_stock or 0) - (p.current_stock or 0) %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+          <td>
+            <a href="{{ url_for('products.product_detail', pid=p.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ p.name }}
+            </a>
+          </td>
+          <td style="font-size:0.85rem; color: var(--text-secondary);">{{ p.category.name if p.category else '—' }}</td>
+          <td class="text-center fw-bold" style="color: {{ 'var(--danger)' if p.stock_status=='out' else 'var(--warning)' }};">
+            {{ "{:g}".format(p.current_stock or 0) }}
+          </td>
+          <td class="text-center">{{ "{:g}".format(p.min_stock or 0) }}</td>
+          <td class="text-center fw-semibold" style="color: var(--danger);">
+            {% if shortage > 0 %}{{ "{:g}".format(shortage) }}{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge-status {{ 'badge-due' if p.stock_status=='out' }}"
+                  style="{{ 'background: var(--warning-light); color: var(--warning);' if p.stock_status=='low' }}">
+              {{ p.stock_status_label }}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center">
+              {% if current_user.can_edit %}
+              <a href="{{ url_for('products.stock_adjust', pid=p.id) }}" class="btn-action" title="تسوية مخزون" style="color: var(--warning);">
+                <i class="bi bi-plus-minus"></i>
+              </a>
+              {% endif %}
+              <a href="{{ url_for('products.product_detail', pid=p.id) }}" class="btn-action btn-view" title="التفاصيل">
+                <i class="bi bi-eye"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <i class="bi bi-check2-circle"></i>
+              <p>ممتاز! لا توجد منتجات نافذة أو منخفضة</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

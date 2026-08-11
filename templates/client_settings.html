@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}إعدادات التذكير - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6">
+    <div class="card animate-in">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4 gap-2">
+          <a href="{{ url_for('clients.client_detail', cid=client.id) }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-arrow-right"></i>
+          </a>
+          <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+            <i class="bi bi-bell text-primary"></i>إعدادات التذكير
+          </h5>
+        </div>
+
+        <div style="background: var(--primary-10); border-radius: var(--radius-sm); padding: 0.7rem 1rem; margin-bottom: 1.5rem;">
+          <span style="font-size: 0.88rem; color: var(--text-secondary);">
+            <i class="bi bi-person-circle me-1"></i>{{ client.name }}
+          </span>
+        </div>
+
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="reminder_enabled" id="rem_en"
+                     {{ 'checked' if client.reminder_enabled }} style="width:3em; height:1.5em;">
+              <label class="form-check-label fw-semibold" for="rem_en" style="font-size:0.92rem;">
+                تفعيل التذكير التلقائي لهذا العميل
+              </label>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">قالب الرسالة</label>
+            <select name="reminder_template" class="form-select">
+              <option value="1" {{ 'selected' if client.reminder_template == 1 }}>القالب الأول — رسمي</option>
+              <option value="2" {{ 'selected' if client.reminder_template == 2 }}>القالب الثاني — مباشر</option>
+              <option value="3" {{ 'selected' if client.reminder_template == 3 }}>القالب الثالث — مختصر</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">أوقات التذكير (اختياري)</label>
+            <input type="text" name="reminder_times" class="form-control"
+                   value="{{ client.reminder_times or '' }}"
+                   placeholder="اترك فارغاً لاستخدام الأوقات العامة — مثال: 10:00,14:00,18:00">
+            <div class="form-text" style="font-size:0.78rem;">
+              <i class="bi bi-info-circle"></i>
+              إذا تركته فارغاً سيتم استخدام الأوقات العامة من الإعدادات.
+              يمكنك إدخال أكثر من وقت مفصولة بفواصل مثل <code>10:00,14:00,18:00</code>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">التكرار</label>
+            <select name="reminder_frequency" class="form-select" id="freqSelect" onchange="toggleClientFreq()">
+              <option value="" {{ 'selected' if not client.reminder_frequency }}>افتراضي (من الإعدادات)</option>
+              <option value="daily" {{ 'selected' if client.reminder_frequency == 'daily' }}>يومياً</option>
+              <option value="weekly" {{ 'selected' if client.reminder_frequency == 'weekly' }}>أسبوعياً</option>
+              <option value="monthly" {{ 'selected' if client.reminder_frequency == 'monthly' }}>شهرياً</option>
+            </select>
+          </div>
+          <div id="weeklyBlock" class="mb-4" style="{{ '' if client.reminder_frequency == 'weekly' else 'display:none' }}">
+            <label class="form-label">اليوم</label>
+            <select name="reminder_day" class="form-select">
+              <option value="" {{ 'selected' if not client.reminder_day }}>افتراضي</option>
+              <option value="sun" {{ 'selected' if client.reminder_day == 'sun' }}>الأحد</option>
+              <option value="mon" {{ 'selected' if client.reminder_day == 'mon' }}>الاثنين</option>
+              <option value="tue" {{ 'selected' if client.reminder_day == 'tue' }}>الثلاثاء</option>
+              <option value="wed" {{ 'selected' if client.reminder_day == 'wed' }}>الأربعاء</option>
+              <option value="thu" {{ 'selected' if client.reminder_day == 'thu' }}>الخميس</option>
+              <option value="fri" {{ 'selected' if client.reminder_day == 'fri' }}>الجمعة</option>
+              <option value="sat" {{ 'selected' if client.reminder_day == 'sat' }}>السبت</option>
+            </select>
+          </div>
+          <div id="monthlyBlock" class="mb-4" style="{{ '' if client.reminder_frequency == 'monthly' else 'display:none' }}">
+            <label class="form-label">يوم الشهر</label>
+            <input type="number" name="reminder_dom" class="form-control" min="1" max="31"
+                   value="{{ client.reminder_dom or '' }}" placeholder="افتراضي">
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+              <i class="bi bi-check-lg"></i>حفظ الإعدادات
+            </button>
+            <a href="{{ url_for('clients.client_detail', cid=client.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleClientFreq() {
+  const v = document.getElementById('freqSelect').value;
+  document.getElementById('weeklyBlock').style.display = v === 'weekly' ? '' : 'none';
+  document.getElementById('monthlyBlock').style.display = v === 'monthly' ? '' : 'none';
+}
+</script>
+{% endblock %}

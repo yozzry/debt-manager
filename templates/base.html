@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}نظام إدارة المديونيات{% endblock %}</title>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+<link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.rtl.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-icons.min.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #e0e7ff;
+    --primary-10: rgba(79,70,229,0.1);
+    --success: #059669;
+    --success-light: #d1fae5;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --info: #0891b2;
+
+    --bg: #f1f5f9;
+    --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    --card-bg: rgba(255,255,255,0.82);
+    --glass: rgba(255,255,255,0.6);
+    --glass-border: rgba(255,255,255,0.5);
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+    --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-lg: 20px;
+    --radius-pill: 50px;
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --font: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+  }
+
+  body.dark {
+    --bg: #0b1121;
+    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --card-bg: rgba(30,41,59,0.85);
+    --glass: rgba(30,41,59,0.65);
+    --glass-border: rgba(51,65,85,0.5);
+    --border: #1e293b;
+    --border-light: #1e293b;
+    --text: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow: 0 4px 6px rgba(0,0,0,0.3);
+    --shadow-md: 0 10px 15px rgba(0,0,0,0.35);
+    --shadow-lg: 0 20px 25px rgba(0,0,0,0.4);
+    --primary-light: #312e81;
+  }
+
+  body {
+    background: var(--bg-gradient);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    transition: background 0.4s, color 0.3s;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Navbar ── */
+  .app-navbar {
+    background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%) !important;
+    box-shadow: 0 4px 20px rgba(79,70,229,0.25);
+    padding: 0.6rem 0;
+    border: none;
+    backdrop-filter: blur(20px);
+  }
+  .app-navbar .navbar-brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    color: #fff !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-navbar .navbar-brand .brand-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    backdrop-filter: blur(10px);
+  }
+  .app-navbar .nav-link {
+    color: rgba(255,255,255,0.75) !important;
+    font-weight: 500;
+    font-size: 0.88rem;
+    padding: 0.45rem 0.85rem !important;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .app-navbar .nav-link:hover,
+  .app-navbar .nav-link.active {
+    color: #fff !important;
+    background: rgba(255,255,255,0.15);
+  }
+  .app-navbar .nav-link i { font-size: 1rem; }
+
+  .mode-switch {
+    display: inline-flex;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius-pill);
+    padding: 3px;
+    gap: 2px;
+  }
+  .mode-switch .mode-btn {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition);
+  }
+  .mode-switch .mode-btn:hover { color: #fff; background: rgba(255,255,255,0.12); }
+  .mode-switch .mode-btn.active {
+    background: #fff;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .mode-switch .mode-btn i { font-size: 0.85rem; }
+
+  #dark-toggle {
+    cursor: pointer;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 0.95rem;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #dark-toggle:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.12);
+    padding: 4px 14px 4px 8px;
+    border-radius: var(--radius-pill);
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.9);
+  }
+  .user-chip .avatar {
+    width: 28px;
+    height: 28px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .btn-logout {
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-sm);
+    padding: 5px 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: var(--transition);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(12px);
+    transition: var(--transition);
+    overflow: hidden;
+  }
+  .card:hover { box-shadow: var(--shadow); }
+  .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border-light);
+    padding: 1rem 1.25rem;
+  }
+
+  /* ── Stat Cards ── */
+  .stat-card {
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+    border: none;
+  }
+  .stat-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: var(--shadow-lg); }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    transition: var(--transition);
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -20%;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .stat-card:hover::before { transform: scale(1.2); }
+  .stat-card .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 0.8rem;
+    backdrop-filter: blur(10px);
+  }
+  .stat-card .stat-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
+  }
+  .stat-card .stat-label {
+    font-size: 0.82rem;
+    opacity: 0.85;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+
+  /* ── Tables ── */
+  .table-container { overflow-x: auto; }
+  .table {
+    margin: 0;
+    font-size: 0.88rem;
+  }
+  .table thead th {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    border: none;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .table thead th:first-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .table thead th:last-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .table tbody td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    border-color: var(--border-light);
+  }
+  .table-hover tbody tr {
+    transition: var(--transition);
+  }
+  .table-hover tbody tr:hover {
+    background: var(--primary-10);
+  }
+
+  /* ── Badges ── */
+  .badge-status {
+    padding: 5px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .badge-due {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    color: #b91c1c;
+  }
+  .badge-paid {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #047857;
+  }
+  .dark .badge-due { background: linear-gradient(135deg, #7f1d1d, #991b1b); color: #fca5a5; }
+  .dark .badge-paid { background: linear-gradient(135deg, #14532d, #166534); color: #86efac; }
+
+  /* ── Buttons ── */
+  .btn {
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: 0.88rem;
+    padding: 0.5rem 1.1rem;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary {
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.25);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+    transform: translateY(-1px);
+  }
+  .btn-success {
+    background: var(--success);
+    border: none;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(5,150,105,0.25);
+  }
+  .btn-success:hover { background: #047857; transform: translateY(-1px); }
+  .btn-danger {
+    background: var(--danger);
+    border: none;
+    color: #fff;
+  }
+  .btn-outline-primary {
+    color: var(--primary);
+    border-color: var(--border);
+    background: transparent;
+  }
+  .btn-outline-primary:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .btn-action {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    transition: var(--transition);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+  }
+  .btn-action:hover { transform: scale(1.08); }
+  .btn-action.btn-view:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-action.btn-edit:hover { background: var(--warning); color: #fff; border-color: var(--warning); }
+  .btn-action.btn-wa:hover { background: #25d366; color: #fff; border-color: #25d366; }
+  .btn-action.btn-del:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+  /* ── Forms ── */
+  .form-control, .form-select {
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+    transition: var(--transition);
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-10);
+    background: var(--card-bg);
+    color: var(--text);
+  }
+  .form-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+  }
+  .form-text { font-size: 0.78rem; color: var(--text-muted); }
+
+  /* ── Modals ── */
+  .modal-content {
+    border-radius: var(--radius-lg);
+    border: none;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-header {
+    border-bottom: 1px solid var(--border-light);
+    padding: 1.2rem 1.5rem;
+  }
+  .modal-body { padding: 1.5rem; }
+  .modal-footer {
+    border-top: 1px solid var(--border-light);
+    padding: 1rem 1.5rem;
+  }
+
+  /* ── Alerts ── */
+  .alert {
+    border-radius: var(--radius);
+    border: none;
+    font-size: 0.88rem;
+    padding: 0.8rem 1rem;
+  }
+
+  /* ── Pagination ── */
+  .page-link {
+    color: var(--primary);
+    border-color: var(--border);
+    border-radius: var(--radius-sm) !important;
+    margin: 0 2px;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    transition: var(--transition);
+  }
+  .page-item.active .page-link {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+  }
+
+  /* ── Toast ── */
+  .toast-container { z-index: 9999; }
+  .toast {
+    border-radius: var(--radius);
+    border: none;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in {
+    animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.1s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.2s; }
+
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .pulse { animation: pulse 2s infinite; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ── Section Header ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.2rem;
+  }
+  .section-header h5 {
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+  }
+  .empty-state i { font-size: 3rem; opacity: 0.4; display: block; margin-bottom: 0.8rem; }
+  .empty-state p { font-size: 0.92rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .stat-card .stat-value { font-size: 1.4rem; }
+    .stat-card { padding: 1.1rem; }
+    .stat-card .stat-icon { width: 40px; height: 40px; font-size: 1.1rem; }
+    .table { font-size: 0.82rem; }
+    .app-navbar .nav-link { font-size: 0.82rem; padding: 0.4rem 0.6rem !important; }
+    .container-fluid { padding-left: 1rem !important; padding-right: 1rem !important; }
+  }
+</style>
+{% block extra_css %}{% endblock %}
+</head>
+<body class="{{ 'dark' if session.get('dark_mode') else '' }}" id="body-el">
+
+<nav class="navbar navbar-expand-lg app-navbar sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('dashboard.index') if app_mode == 'commerce' else url_for('clients.index') }}">
+      <div class="brand-icon"><i class="bi {{ 'bi-bag-check' if app_mode == 'commerce' else 'bi-wallet2' }}"></i></div>
+      <span>{{ 'إدارة التجارة' if app_mode == 'commerce' else 'المديونيات' }}</span>
+    </a>
+    <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMenu">
+      {% if current_user.is_authenticated %}
+      <ul class="navbar-nav me-auto mt-2 mt-lg-0">
+        {% if app_mode == 'debt' %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'clients.index' %}active{% endif %}" href="{{ url_for('clients.index') }}">
+            <i class="bi bi-grid-1x2"></i>الرئيسية
+          </a>
+        </li>
+        {% endif %}
+        {% if app_mode == 'commerce' %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('dashboard.') %}active{% endif %}" href="{{ url_for('dashboard.index') }}">
+            <i class="bi bi-speedometer2"></i>لوحة العمليات
+          </a>
+        </li>
+        {% if current_user.can_edit or current_user.can_pos %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('pos.') and request.endpoint != 'pos.history' %}active{% endif %}" href="{{ url_for('pos.index') }}">
+            <i class="bi bi-bag-check"></i>نقطة البيع
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'pos.history' %}active{% endif %}" href="{{ url_for('pos.history') }}">
+            <i class="bi bi-receipt"></i>سجل المبيعات
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.can_edit %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('products.') %}active{% endif %}" href="{{ url_for('products.index') }}">
+            <i class="bi bi-box-seam"></i>المنتجات والمخازن
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('purchases.') %}active{% endif %}" href="{{ url_for('purchases.index') }}">
+            <i class="bi bi-cart-dash"></i>المشتريات
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.can_edit or current_user.can_accounting %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('accounts.') %}active{% endif %}" href="{{ url_for('accounts.index') }}">
+            <i class="bi bi-journal-text"></i>المحاسبة
+          </a>
+        </li>
+        {% endif %}
+        {% endif %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'reports.report' %}active{% endif %}" href="{{ url_for('reports.report') }}">
+            <i class="bi bi-bar-chart-line"></i>التقارير
+          </a>
+        </li>
+        {% if app_mode == 'debt' and current_user.can_edit %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'reports.import_excel' %}active{% endif %}" href="{{ url_for('reports.import_excel') }}">
+            <i class="bi bi-cloud-upload"></i>استيراد
+          </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('reports.export_excel_route') }}">
+            <i class="bi bi-cloud-download"></i>تصدير
+          </a>
+        </li>
+        {% if current_user.is_admin %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'whatsapp.settings' %}active{% endif %}" href="{{ url_for('whatsapp.settings') }}">
+            <i class="bi bi-sliders"></i>الإعدادات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'auth.users' %}active{% endif %}" href="{{ url_for('auth.users') }}">
+            <i class="bi bi-people"></i>المستخدمون
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+      <div class="d-flex align-items-center gap-2">
+        <div class="mode-switch">
+          <a class="mode-btn {{ '' if app_mode == 'commerce' else 'active' }}" href="{{ url_for('auth.switch_mode', mode='debt') }}">
+            <i class="bi bi-wallet2"></i>الديون
+          </a>
+          <a class="mode-btn {{ 'active' if app_mode == 'commerce' }}" href="{{ url_for('auth.switch_mode', mode='commerce') }}">
+            <i class="bi bi-bag-check"></i>التجارة
+          </a>
+        </div>
+        <button id="dark-toggle" onclick="toggleDark()" title="تبديل الوضع">
+          <i class="bi bi-moon" id="dark-icon"></i>
+        </button>
+        <div class="user-chip">
+          <div class="avatar"><i class="bi bi-person-fill"></i></div>
+          {{ current_user.username }}
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="btn-logout">
+          <i class="bi bi-box-arrow-right"></i>خروج
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-3 px-md-4 py-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show animate-in" role="alert">
+      <i class="bi bi-{{ 'check-circle-fill' if cat=='success' else 'exclamation-triangle-fill' if cat=='warning' else 'x-circle-fill' if cat=='danger' else 'info-circle-fill' }} me-2"></i>
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
+<script>
+function showToast(msg, type='success') {
+  const tc = document.getElementById('toastContainer');
+  const id = 'toast_' + Date.now();
+  const cfg = {
+    success: { icon: 'check-circle-fill', bg: '#059669' },
+    danger:  { icon: 'x-circle-fill', bg: '#dc2626' },
+    warning: { icon: 'exclamation-triangle-fill', bg: '#d97706' },
+    info:    { icon: 'info-circle-fill', bg: '#0891b2' }
+  };
+  const c = cfg[type] || cfg.info;
+  const wrap = document.createElement('div');
+  wrap.id = id;
+  wrap.className = 'toast align-items-center text-white border-0';
+  wrap.setAttribute('role', 'alert');
+  wrap.style.background = c.bg;
+  const body = document.createElement('div');
+  body.className = 'd-flex';
+  const msgEl = document.createElement('div');
+  msgEl.className = 'toast-body';
+  const icon = document.createElement('i');
+  icon.className = 'bi bi-' + c.icon + ' me-2';
+  msgEl.appendChild(icon);
+  msgEl.appendChild(document.createTextNode(msg));
+  body.appendChild(msgEl);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-close btn-close-white me-2 m-auto';
+  btn.setAttribute('data-bs-dismiss', 'toast');
+  body.appendChild(btn);
+  wrap.appendChild(body);
+  tc.appendChild(wrap);
+  new bootstrap.Toast(wrap, {delay: 3500}).show();
+  wrap.addEventListener('hidden.bs.toast', () => wrap.remove());
+}
+
+function toggleDark() {
+  const body = document.getElementById('body-el');
+  body.classList.toggle('dark');
+  const isDark = body.classList.contains('dark');
+  document.getElementById('dark-icon').className = isDark ? 'bi bi-sun' : 'bi bi-moon';
+  localStorage.setItem('darkMode', isDark ? '1' : '0');
+  fetch('/api/toggle-dark', {method:'POST', headers:{'X-CSRFToken': getCsrf()}});
+}
+
+function getCsrf() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) return meta.getAttribute('content');
+  const m = document.cookie.match(/csrf_token=([^;]+)/);
+  return m ? m[1] : '';
+}
+
+// Init dark mode from localStorage
+if(localStorage.getItem('darkMode') === '1') {
+  document.getElementById('body-el').classList.add('dark');
+  document.getElementById('dark-icon').className = 'bi bi-sun';
+}
+
+// pywebview: intercept export/download links
+if(window.pywebview) {
+  document.addEventListener('click', async function(e) {
+    const a = e.target.closest('a[href*="/export"], a[href*="export-db"], a[href*="download-backup"]');
+    if(!a) return;
+    e.preventDefault();
+    const href = a.getAttribute('href');
+    try {
+      let url, fmt;
+      if(href.includes('export-db')) {
+        url = '/api/database/save-export';
+      } else if(href.includes('export/pdf')) {
+        url = '/export/save?fmt=pdf';
+      } else {
+        url = '/export/save?fmt=xlsx';
+      }
+      const r = await fetch(url, {credentials:'include'});
+      const d = await r.json();
+      if(d.ok && d.path) {
+        await window.pywebview.api.open_file(d.path);
+      }
+    } catch(err) { console.error(err); }
+  });
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block title %}المنتجات - المديونيات{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 animate-in delay-1">
+    <div class="stat-card" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
+      <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
+      <div class="stat-value">{{ stats.total_products }}</div>
+      <div class="stat-label">إجمالي المنتجات</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-2">
+    <div class="stat-card" style="background: linear-gradient(135deg, #0891b2, #155e75)">
+      <div class="stat-icon"><i class="bi bi-boxes"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(stats.total_qty) }}</div>
+      <div class="stat-label">إجمالي الكميات</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #d97706, #b45309)">
+      <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+      <div class="stat-value">{{ "{:,.0f}".format(stats.stock_value) }}</div>
+      <div class="stat-label">قيمة المخزون (تكلفة)</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 animate-in delay-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, {{ '#dc2626' if stats.out_count else '#059669' }}, {{ '#b91c1c' if stats.out_count else '#047857' }})">
+      <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-value">{{ stats.out_count }} / {{ stats.low_count }}</div>
+      <div class="stat-label">نافذ / منخفض</div>
+    </div>
+  </div>
+</div>
+
+<!-- Search & Actions -->
+<div class="card mb-4 animate-in delay-2">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-md-7">
+        <form method="GET" action="{{ url_for('products.index') }}" class="d-flex gap-2">
+          <div class="input-group flex-grow-1">
+            <span class="input-group-text" style="border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--card-bg); border-color: var(--border);">
+              <i class="bi bi-search" style="color: var(--text-muted)"></i>
+            </span>
+            <input type="text" name="q" value="{{ search }}" class="form-control"
+                   placeholder="بحث بالاسم أو SKU أو الباركود..."
+                   style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0;">
+          </div>
+          <select name="category" class="form-select" style="max-width: 150px;">
+            <option value="">كل التصنيفات</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}" {{ 'selected' if category_id == c.id }}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+          <select name="stock" class="form-select" style="max-width: 140px;">
+            <option value="" {{ 'selected' if not stock_filter }}>كل الحالات</option>
+            <option value="low" {{ 'selected' if stock_filter=='low' }}>منخفض</option>
+            <option value="out" {{ 'selected' if stock_filter=='out' }}>نافذ</option>
+            <option value="ok" {{ 'selected' if stock_filter=='ok' }}>متوفر</option>
+          </select>
+          <button class="btn btn-primary px-3">
+            <i class="bi bi-search"></i>
+          </button>
+        </form>
+      </div>
+      <div class="col-12 col-md-5 d-flex gap-2 justify-content-md-end flex-wrap">
+        {% if current_user.can_edit %}
+        <a href="{{ url_for('products.product_add') }}" class="btn btn-success">
+          <i class="bi bi-plus-lg"></i>منتج جديد
+        </a>
+        <a href="{{ url_for('products.categories') }}" class="btn btn-outline-primary">
+          <i class="bi bi-tags"></i>التصنيفات
+        </a>
+        {% endif %}
+        <a href="{{ url_for('products.low_stock') }}" class="btn btn-outline-warning">
+          <i class="bi bi-clipboard-data"></i>الجرد
+        </a>
+        <a href="{{ url_for('products.movements') }}" class="btn btn-outline-primary">
+          <i class="bi bi-arrow-left-right"></i>الحركات
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Products Table -->
+<div class="card animate-in delay-3">
+  <div class="table-container">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>المنتج</th>
+          <th>التصنيف</th>
+          <th class="text-center">الباركود / SKU</th>
+          <th class="text-center">التكلفة</th>
+          <th class="text-center">البيع</th>
+          <th class="text-center">المخزون</th>
+          <th class="text-center">الحالة</th>
+          <th class="text-center" style="width:180px">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td class="text-muted" style="font-size:0.8rem">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+          <td>
+            <a href="{{ url_for('products.product_detail', pid=p.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+              {{ p.name }}
+            </a>
+            {% if not p.is_active %}
+            <span class="badge bg-secondary" style="font-size:0.65rem; margin-right:4px;">معطل</span>
+            {% endif %}
+          </td>
+          <td style="font-size:0.85rem; color: var(--text-secondary);">
+            {{ p.category.name if p.category else '—' }}
+          </td>
+          <td class="text-center" style="font-size:0.8rem; color: var(--text-muted);">
+            {{ p.barcode or p.sku or '—' }}
+          </td>
+          <td class="text-center" style="font-size:0.85rem;">{{ "{:,.2f}".format(p.cost_price or 0) }}</td>
+          <td class="text-center fw-semibold" style="font-size:0.85rem; color: var(--success);">{{ "{:,.2f}".format(p.selling_price or 0) }}</td>
+          <td class="text-center fw-bold" style="font-size:0.9rem;">
+            <span class="{{ 'text-danger' if p.stock_status=='out' else 'text-warning' if p.stock_status=='low' else 'text-success' }}">
+              {{ "{:g}".format(p.current_stock or 0) }}
+            </span>
+            <span class="text-muted" style="font-size:0.75rem;">{{ p.unit }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge-status {{ 'badge-due' if p.stock_status=='out' else 'badge-paid' if p.stock_status=='low' }}"
+                  style="{{ 'background: var(--warning-light); color: var(--warning);' if p.stock_status=='low' }}">
+              {{ p.stock_status_label }}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center">
+              <a href="{{ url_for('products.product_detail', pid=p.id) }}" class="btn-action btn-view" title="التفاصيل">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if current_user.can_edit %}
+              <a href="{{ url_for('products.product_edit', pid=p.id) }}" class="btn-action btn-edit" title="تعديل">
+                <i class="bi bi-pencil-square"></i>
+              </a>
+              <a href="{{ url_for('products.stock_adjust', pid=p.id) }}" class="btn-action" title="تسوية مخزون" style="color: var(--warning);">
+                <i class="bi bi-plus-minus"></i>
+              </a>
+              <a href="{{ url_for('products.barcode_label', pid=p.id) }}" class="btn-action" title="باركود" style="color: var(--info);">
+                <i class="bi bi-upc-scan"></i>
+              </a>
+              {% endif %}
+              {% if current_user.is_admin %}
+              <button class="btn-action btn-del" title="حذف"
+                      data-id="{{ p.id }}" data-name="{{ p.name }}"
+                      onclick="confirmDelete(+this.dataset.id, this.dataset.name)">
+                <i class="bi bi-trash3"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <i class="bi bi-box-seam"></i>
+              <p>لا توجد منتجات</p>
+              {% if current_user.can_edit %}
+              <a href="{{ url_for('products.product_add') }}" class="btn btn-primary mt-2">
+                <i class="bi bi-plus-lg"></i>إضافة أول منتج
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+  <ul class="pagination mb-0">
+    {% if pagination.has_prev %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.prev_num }}&q={{ search|urlencode }}&category={{ category_id or '' }}&stock={{ stock_filter|urlencode }}">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </li>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+      <li class="page-item {{ 'active' if p == pagination.page }}">
+        <a class="page-link" href="?page={{ p }}&q={{ search|urlencode }}&category={{ category_id or '' }}&stock={{ stock_filter|urlencode }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ pagination.next_num }}&q={{ search|urlencode }}&category={{ category_id or '' }}&stock={{ stock_filter|urlencode }}">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+<form method="POST" id="deleteForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(id, name) {
+  if (!confirm(`هل تريد حذف المنتج "${name}"؟\nسيتم حذف كل حركات المخزون الخاصة به.`)) return;
+  const f = document.getElementById('deleteForm');
+  f.action = `/products/${id}/delete`;
+  f.submit();
+}
+</script>
+{% endblock %}

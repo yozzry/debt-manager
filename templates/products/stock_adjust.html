@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}تسوية مخزون - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-7 col-lg-5">
+    <div class="card animate-in">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4 gap-2">
+          <a href="{{ url_for('products.product_detail', pid=product.id) }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-arrow-right"></i>
+          </a>
+          <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+            <i class="bi bi-plus-minus text-warning"></i>تسوية مخزون
+          </h5>
+        </div>
+
+        <div class="mb-4 p-3" style="background: var(--primary-10); border-radius: var(--radius);">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold" style="font-size:0.95rem;">{{ product.name }}</div>
+              <div class="text-muted" style="font-size:0.8rem;">{{ product.category.name if product.category else 'بدون تصنيف' }}</div>
+            </div>
+            <div class="text-center">
+              <div class="text-muted" style="font-size:0.72rem;">المخزون الحالي</div>
+              <div class="fw-bold" style="font-size:1.3rem; color: var(--primary);">
+                {{ "{:g}".format(product.current_stock or 0) }} <small style="font-size:0.8rem;">{{ product.unit }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label">نوع الحركة</label>
+            <select name="movement_type" class="form-select" id="movementType">
+              <option value="IN">إضافة (وارد)</option>
+              <option value="OUT">صرف (منصرف)</option>
+              <option value="ADJUST">تسوية مباشرة (تحديد الكمية)</option>
+            </select>
+          </div>
+          <div class="mb-3" id="qtyField">
+            <label class="form-label" id="qtyLabel">الكمية</label>
+            <input type="number" step="0.01" min="0.01" name="quantity" class="form-control" required
+                   value="{{ '{:g}'.format(product.current_stock or 0) if not product else '' }}" id="qtyInput">
+            <div class="form-text">الكمية المضافة أو المنصرفة</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">السبب / ملاحظات <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+            <input type="text" name="notes" class="form-control"
+                   placeholder="مثال: إضافة مخزون جديد، جرد، تالف...">
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+              <i class="bi bi-check-lg"></i>تنفيذ التسوية
+            </button>
+            <a href="{{ url_for('products.product_detail', pid=product.id) }}" class="btn btn-outline-secondary">إلغاء</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const typeSelect = document.getElementById('movementType');
+const qtyLabel = document.getElementById('qtyLabel');
+const qtyField = document.getElementById('qtyField');
+const qtyInput = document.getElementById('qtyInput');
+function updateMode() {
+  if (typeSelect.value === 'ADJUST') {
+    qtyLabel.textContent = 'الرصيد الجديد (الكمية النهائية)';
+    qtyInput.step = '0.01';
+    qtyInput.min = '0';
+    qtyInput.value = '{{ "{:g}".format(product.current_stock or 0) }}';
+  } else {
+    qtyLabel.textContent = 'الكمية';
+    qtyInput.step = '0.01';
+    qtyInput.min = '0.01';
+    qtyInput.value = '';
+  }
+}
+typeSelect.addEventListener('change', updateMode);
+</script>
+{% endblock %}

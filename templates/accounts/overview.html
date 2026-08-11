@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% block title %}التقرير المالي الشامل - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('accounts.trial_balance') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <div>
+      <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-bar-graph text-primary"></i> التقرير المالي الشامل</h5>
+      {% if app_settings.company_name %}
+      <div class="text-muted" style="font-size:0.8rem;">{{ app_settings.company_name }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('accounts.overview_pdf', from=date_from, to=date_to, compare=compare) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-file-earmark-pdf"></i>طباعة PDF شامل</a>
+  </div>
+</div>
+
+<form method="GET" action="{{ url_for('accounts.overview') }}" class="row g-2 align-items-end mb-4 animate-in delay-1">
+  <div class="col-auto">
+    <label class="form-label mb-1" style="font-size:0.8rem;">من تاريخ</label>
+    <input type="date" name="from" value="{{ date_from }}" class="form-control">
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-1" style="font-size:0.8rem;">إلى تاريخ</label>
+    <input type="date" name="to" value="{{ date_to }}" class="form-control">
+  </div>
+  <div class="col-auto d-flex align-items-end pb-1">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" name="compare" id="compareSwitch" value="1" {{ 'checked' if compare else '' }}>
+      <label class="form-check-label" for="compareSwitch" style="font-size:0.85rem;">مقارنة قائمة الدخل</label>
+    </div>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i>عرض</button>
+  </div>
+  {% if date_from or date_to or compare %}
+  <div class="col-auto">
+    <a href="{{ url_for('accounts.overview') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
+  </div>
+  {% endif %}
+</form>
+
+<div class="row g-3 mb-4">
+  {% set kpis = [
+    ('إجمالي الأصول', bs.total_assets, '#4f46e5', 'bi-cash-coin', 'assets'),
+    ('إجمالي الخصوم', bs.total_liab, '#0891b2', 'bi-file-earmark-text', 'liab'),
+    ('حقوق الملكية', bs.total_equity, '#7c3aed', 'bi-person-badge', 'equity'),
+    ('صافي الدخل', is_.net_income, ('#059669' if is_.net_income >= 0 else '#dc2626'), 'bi-graph-up-arrow', 'net'),
+    ('النقدية والبنك', cash_balance, '#d97706', 'bi-cash-stack', 'cash'),
+    ('صافي التدفق النقدي', cf.net_change, ('#059669' if cf.net_change >= 0 else '#dc2626'), 'bi-arrow-left-right', 'flow'),
+  ] %}
+  {% for label, value, color, icon, _k in kpis %}
+  <div class="col-6 col-lg-4 col-xl-2 animate-in delay-{{ loop.index }}">
+    <div class="stat-card" style="background: linear-gradient(135deg, {{ color }}, {{ color }}cc)">
+      <div class="stat-icon"><i class="bi {{ icon }}"></i></div>
+      <div class="stat-value">{{ "{:,.2f}".format(value) }} <span style="font-size:0.8rem; opacity:0.8;">{{ app_settings.currency_short }}</span></div>
+      <div class="stat-label">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4 animate-in delay-1">
+    <div class="card h-100">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-clipboard-data text-primary"></i> الميزانية العمومية</span></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">الأصول</span>
+          <span class="fw-semibold">{{ "{:,.2f}".format(bs.total_assets) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">الخصوم</span>
+          <span class="fw-semibold">{{ "{:,.2f}".format(bs.total_liab) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">حقوق الملكية</span>
+          <span class="fw-semibold">{{ "{:,.2f}".format(bs.total_equity) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">صافي الدخل</span>
+          <span class="fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(bs.net_income) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 mt-1">
+          <span class="fw-bold">الحالة</span>
+          {% if bs.balanced %}
+          <span class="badge text-bg-success"><i class="bi bi-check-circle-fill"></i> متوازنة</span>
+          {% else %}
+          <span class="badge text-bg-danger"><i class="bi bi-exclamation-triangle-fill"></i> غير متوازنة</span>
+          {% endif %}
+        </div>
+        <div class="mt-3">
+          <a href="{{ url_for('accounts.balance_sheet', from=date_from, to=date_to) }}" class="btn btn-outline-primary btn-sm w-100">عرض التفاصيل</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 animate-in delay-2">
+    <div class="card h-100">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-graph-up-arrow text-success"></i> قائمة الدخل</span></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">الإيرادات</span>
+          <span class="fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(is_.total_income) }}</span>
+        </div>
+        {% if is_.has_prev %}
+        <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:0.8rem;">
+          <span class="text-muted">الفترة السابقة</span>
+          <span class="text-muted">{{ "{:,.2f}".format(is_.total_income_prev or 0) }}</span>
+        </div>
+        {% endif %}
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">المصروفات</span>
+          <span class="fw-semibold" style="color: var(--danger);">{{ "{:,.2f}".format(is_.total_expense) }}</span>
+        </div>
+        {% if is_.has_prev %}
+        <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:0.8rem;">
+          <span class="text-muted">الفترة السابقة</span>
+          <span class="text-muted">{{ "{:,.2f}".format(is_.total_expense_prev or 0) }}</span>
+        </div>
+        {% endif %}
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="fw-bold">صافي الدخل</span>
+          <span class="fw-bold fs-6" style="color: {{ 'var(--success)' if is_.net_income >= 0 else 'var(--danger)' }};">{{ "{:,.2f}".format(is_.net_income) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 mb-2">
+          <span class="text-muted">الربحية</span>
+          <span class="fw-semibold">{{ "{:.1f}%".format(is_.net_income * 100 / is_.total_income if is_.total_income else 0) }}</span>
+        </div>
+        <div>
+          <a href="{{ url_for('accounts.income_statement', from=date_from, to=date_to, compare=compare) }}" class="btn btn-outline-success btn-sm w-100">عرض التفاصيل</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 animate-in delay-3">
+    <div class="card h-100">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-cash-stack text-warning"></i> التدفقات النقدية</span></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">التشغيلية</span>
+          <span class="fw-semibold {% if cf.net_operating < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(cf.net_operating) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">الاستثمارية</span>
+          <span class="fw-semibold {% if cf.net_investing < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(cf.net_investing) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">التمويلية</span>
+          <span class="fw-semibold {% if cf.net_financing < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(cf.net_financing) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="fw-bold">صافي التغير</span>
+          <span class="fw-bold fs-6" style="color: {{ 'var(--success)' if cf.net_change >= 0 else 'var(--danger)' }};">{{ "{:,.2f}".format(cf.net_change) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2">
+          <span class="text-muted">رصيد النقدية نهاية الفترة</span>
+          <span class="fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(cf.cash_balance) }}</span>
+        </div>
+        {% if cf.consistent %}
+        <div class="alert alert-success py-2 mb-2" style="font-size:0.8rem;"><i class="bi bi-check-circle-fill"></i> متسق مع تغير النقدية والبنك</div>
+        {% else %}
+        <div class="alert alert-warning py-2 mb-2" style="font-size:0.8rem;"><i class="bi bi-exclamation-triangle-fill"></i> غير متسق مع تغير النقدية ({{ "{:,.2f}".format(cf.actual_change) }})</div>
+        {% endif %}
+        <div>
+          <a href="{{ url_for('accounts.cash_flow', from=date_from, to=date_to) }}" class="btn btn-outline-warning btn-sm w-100">عرض التفاصيل</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3 animate-in delay-3">
+  <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-diagram-3 text-primary"></i> الترابط بين القوائم</span></div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+      <div class="col-md-4">
+        <div class="border rounded-3 p-3 h-100">
+          <div class="text-muted mb-1" style="font-size:0.85rem;">صافي الدخل (قائمة الدخل)</div>
+          <div class="fw-bold fs-5" style="color: var(--text);">{{ "{:,.2f}".format(is_.net_income) }} <span style="font-size:0.8rem; color: var(--text-muted);">{{ app_settings.currency_short }}</span></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded-3 p-3 h-100">
+          <div class="text-muted mb-1" style="font-size:0.85rem;">مُدرج ضمن حقوق الملكية (الميزانية)</div>
+          <div class="fw-bold fs-5" style="color: var(--text);">{{ "{:,.2f}".format(bs.net_income) }} <span style="font-size:0.8rem; color: var(--text-muted);">{{ app_settings.currency_short }}</span></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded-3 p-3 h-100">
+          <div class="text-muted mb-1" style="font-size:0.85rem;">يُطابق صافي التدفق النقدي</div>
+          <div class="fw-bold fs-5" style="color: var(--text);">{{ "{:,.2f}".format(cf.net_change) }} <span style="font-size:0.8rem; color: var(--text-muted);">{{ app_settings.currency_short }}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

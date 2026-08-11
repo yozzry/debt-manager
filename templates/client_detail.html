@@ -1,0 +1,539 @@
+{% extends 'base.html' %}
+{% block title %}{{ client.name }} - تفاصيل العميل{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 flex-wrap mb-4 animate-in">
+  <a href="{{ url_for('clients.index') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-arrow-right"></i>رجوع
+  </a>
+  <div>
+    <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-person-circle text-primary" style="font-size:1.4rem"></i>
+      {{ client.name }}
+    </h5>
+  </div>
+  <span class="badge-status {{ 'badge-due' if client.status=='due' else 'badge-paid' }}">
+    <i class="bi {{ 'bi-clock-history' if client.status=='due' else 'bi-check-lg' }}" style="font-size:0.7rem"></i>
+    {{ 'مستحق' if client.status=='due' else 'مدفوع' }}
+  </span>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('clients.client_statement', cid=client.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-receipt"></i>كشف حساب
+    </a>
+    {% if client.account_id %}
+    <a href="{{ url_for('accounts.account_detail', aid=client.account_id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-journal-text"></i>{{ client.account.code }} - {{ client.account.name }}
+    </a>
+    {% endif %}
+    {% if current_user.can_edit %}
+    <a href="{{ url_for('clients.client_edit', cid=client.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pencil-square"></i>تعديل
+    </a>
+    <a href="{{ url_for('clients.client_settings', cid=client.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-bell"></i>إعدادات التذكير
+    </a>
+    {% if client.phone %}
+    <button class="btn btn-success btn-sm" onclick="sendReminder()">
+      <i class="bi bi-whatsapp"></i>إرسال تذكير
+    </button>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3 animate-in delay-1">
+    <div class="card text-center p-3">
+      <div style="color: var(--text-muted); font-size:0.78rem; font-weight:500; margin-bottom:0.4rem;">إجمالي المديونية</div>
+      <div class="fw-bold" style="font-size:1.5rem; color: var(--danger);">{{ "{:,.2f}".format(client.total_debt) }}</div>
+      <div style="color: var(--text-muted); font-size:0.75rem;">{{ app_settings.currency }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 animate-in delay-2">
+    <div class="card text-center p-3">
+      <div style="color: var(--text-muted); font-size:0.78rem; font-weight:500; margin-bottom:0.4rem;">إجمالي المدفوع</div>
+      <div class="fw-bold" style="font-size:1.5rem; color: var(--success);">{{ "{:,.2f}".format(client.total_paid) }}</div>
+      <div style="color: var(--text-muted); font-size:0.75rem;">{{ app_settings.currency }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 animate-in delay-3">
+    <div class="card text-center p-3">
+      <div style="color: var(--text-muted); font-size:0.78rem; font-weight:500; margin-bottom:0.4rem;">الرصيد المتبقي</div>
+      <div class="fw-bold" style="font-size:1.5rem; color: {{ 'var(--danger)' if client.balance > 0 else 'var(--success)' }};">
+        {{ "{:,.2f}".format(client.balance) }}
+      </div>
+      <div style="color: var(--text-muted); font-size:0.75rem;">{{ app_settings.currency }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 animate-in delay-4">
+    <div class="card text-center p-3">
+      <div style="color: var(--text-muted); font-size:0.78rem; font-weight:500; margin-bottom:0.4rem;">بيانات التواصل</div>
+      <div class="fw-bold" style="font-size:1.05rem;">{{ client.phone or '—' }}</div>
+      {% if client.notes %}
+      <div style="color: var(--text-muted); font-size:0.75rem; margin-top:4px; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ client.notes }}">
+        {{ client.notes[:40] }}{{ '...' if client.notes|length > 40 }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Invoices -->
+  <div class="col-12 col-lg-7 animate-in delay-2">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-receipt text-primary"></i>الفواتير
+          <span style="background: var(--primary-light); color: var(--primary); padding: 2px 10px; border-radius: 20px; font-size: 0.75rem;">
+            {{ invoices|length }}
+          </span>
+        </h6>
+        {% if current_user.can_edit %}
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInvoiceModal">
+          <i class="bi bi-plus-lg"></i>فاتورة جديدة
+        </button>
+        {% endif %}
+      </div>
+      <div class="table-container">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>الوصف</th>
+              <th class="text-center">المبلغ</th>
+              <th class="text-center">التاريخ</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td>
+                {{ inv.description or '—' }}
+                {% if inv.image_path %}
+                <a href="{{ url_for('uploaded_file', filename=inv.image_path) }}" target="_blank"
+                   class="ms-2" style="color: var(--primary); font-size: 0.85rem;">
+                  <i class="bi bi-paperclip"></i>
+                </a>
+                {% endif %}
+              </td>
+              <td class="text-center fw-semibold" style="color: var(--danger);">{{ "{:,.2f}".format(inv.amount) }}</td>
+              <td class="text-center" style="color: var(--text-muted); font-size: 0.83rem;">{{ inv.date }}</td>
+              <td>
+                {% if current_user.can_edit %}
+                <div class="d-flex gap-1">
+                  <button class="btn-action btn-edit" title="تعديل" onclick='editInvoice({{ inv.id }}, {{ inv.description|tojson }}, {{ inv.amount }}, {{ inv.date|tojson }})'>
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+                  <button class="btn-action btn-del" onclick="deleteInvoice({{ inv.id }})">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4">
+                <div class="empty-state" style="padding:2rem">
+                  <i class="bi bi-receipt" style="font-size:2rem"></i>
+                  <p>لا توجد فواتير</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payments -->
+  <div class="col-12 col-lg-5 animate-in delay-3">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-cash-stack text-success"></i>المدفوعات
+          <span style="background: var(--success-light); color: var(--success); padding: 2px 10px; border-radius: 20px; font-size: 0.75rem;">
+            {{ payments|length }}
+          </span>
+        </h6>
+        {% if current_user.can_edit %}
+        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+          <i class="bi bi-plus-lg"></i>دفعة جديدة
+        </button>
+        {% endif %}
+      </div>
+      <div class="table-container">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="text-center">المبلغ</th>
+              <th class="text-center">التاريخ</th>
+              <th>ملاحظات</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in payments %}
+            <tr>
+              <td class="text-center fw-semibold" style="color: var(--success);">{{ "{:,.2f}".format(p.amount) }}</td>
+              <td class="text-center" style="color: var(--text-muted); font-size: 0.83rem;">{{ p.date }}</td>
+              <td style="font-size: 0.85rem; color: var(--text-secondary);">
+                {{ p.notes or '—' }}
+                {% if p.payment_method %}
+                <span class="badge bg-light text-dark ms-1" style="font-size:0.7rem;">{{ p.payment_method }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if current_user.can_edit %}
+                <div class="d-flex gap-1">
+                  <button class="btn-action btn-edit" title="تعديل" onclick='editPayment({{ p.id }}, {{ p.amount }}, {{ p.date|tojson }}, {{ p.notes|tojson }}, {{ p.payment_method|tojson }})'>
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+                  <button class="btn-action btn-del" onclick="deletePayment({{ p.id }})">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4">
+                <div class="empty-state" style="padding:2rem">
+                  <i class="bi bi-cash-stack" style="font-size:2rem"></i>
+                  <p>لا توجد مدفوعات</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Invoice Modal -->
+<div class="modal fade" id="addInvoiceModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-receipt text-primary"></i>إضافة فاتورة
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">الوصف</label>
+          <input type="text" id="inv_desc" class="form-control" placeholder="مثال: فاتورة شراء بضاعة">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+          <input type="number" id="inv_amount" class="form-control" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="inv_date" class="form-control" value="{{ today }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">صورة الفاتورة <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+          <input type="file" id="inv_image" class="form-control" accept="image/*,application/pdf">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-primary" onclick="submitInvoice()">
+          <i class="bi bi-check-lg"></i>حفظ الفاتورة
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-cash-stack text-success"></i>تسجيل دفعة
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+          <input type="number" id="pay_amount" class="form-control" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="pay_date" class="form-control" value="{{ today }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ملاحظات <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+          <input type="text" id="pay_notes" class="form-control" placeholder="أي ملاحظات إضافية">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+          <select id="pay_method" class="form-select">
+            <option value="">— اختر —</option>
+            <option value="نقدي">نقدي</option>
+            <option value="تحويل بنكي">تحويل بنكي</option>
+            <option value="شيك">شيك</option>
+            <option value="محفظة إلكترونية">محفظة إلكترونية</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-success" onclick="submitPayment()">
+          <i class="bi bi-check-lg"></i>تسجيل الدفعة
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Invoice Modal -->
+<div class="modal fade" id="editInvoiceModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-receipt text-primary"></i>تعديل الفاتورة
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit_inv_id">
+        <div class="mb-3">
+          <label class="form-label">الوصف</label>
+          <input type="text" id="edit_inv_desc" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+          <input type="number" id="edit_inv_amount" class="form-control" step="0.01" min="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="edit_inv_date" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">صورة الفاتورة <span style="color: var(--text-muted); font-weight:400;">(اختياري)</span></label>
+          <input type="file" id="edit_inv_image" class="form-control" accept="image/*,application/pdf">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-primary" onclick="submitEditInvoice()">
+          <i class="bi bi-check-lg"></i>حفظ التعديل
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Payment Modal -->
+<div class="modal fade" id="editPaymentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-cash-stack text-success"></i>تعديل الدفعة
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit_pay_id">
+        <div class="mb-3">
+          <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+          <input type="number" id="edit_pay_amount" class="form-control" step="0.01" min="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="edit_pay_date" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ملاحظات</label>
+          <input type="text" id="edit_pay_notes" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع</label>
+          <select id="edit_pay_method" class="form-select">
+            <option value="">— اختر —</option>
+            <option value="نقدي">نقدي</option>
+            <option value="تحويل بنكي">تحويل بنكي</option>
+            <option value="شيك">شيك</option>
+            <option value="محفظة إلكترونية">محفظة إلكترونية</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-success" onclick="submitEditPayment()">
+          <i class="bi bi-check-lg"></i>حفظ التعديل
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CSRF Token -->
+<form method="POST" id="csrf-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CID = {{ client.id }};
+const CSRF = document.getElementById('csrf_token').value;
+
+async function submitInvoice() {
+  const amount = document.getElementById('inv_amount').value;
+  if (!amount || parseFloat(amount) <= 0) { showToast('أدخل مبلغاً صحيحاً', 'warning'); return; }
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i>جاري الحفظ...';
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fd.append('description', document.getElementById('inv_desc').value);
+  fd.append('amount', amount);
+  fd.append('date', document.getElementById('inv_date').value);
+  const img = document.getElementById('inv_image').files[0];
+  if (img) fd.append('image', img);
+  try {
+    const r = await fetch(`/client/${CID}/invoice/add`, {method:'POST', body: fd});
+    const d = await r.json();
+    showToast(d.msg, d.ok ? 'success' : 'danger');
+    if (d.ok) setTimeout(() => location.reload(), 600);
+  } catch(e) { showToast('خطأ في الاتصال', 'danger'); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-lg"></i>حفظ الفاتورة';
+}
+
+async function submitPayment() {
+  const amount = document.getElementById('pay_amount').value;
+  if (!amount || parseFloat(amount) <= 0) { showToast('أدخل مبلغاً صحيحاً', 'warning'); return; }
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i>جاري الحفظ...';
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fd.append('amount', amount);
+  fd.append('date', document.getElementById('pay_date').value);
+  fd.append('notes', document.getElementById('pay_notes').value);
+  fd.append('payment_method', document.getElementById('pay_method').value);
+  try {
+    const r = await fetch(`/client/${CID}/payment/add`, {method:'POST', body: fd});
+    const d = await r.json();
+    if (d.ok) {
+      showToast('تم تسجيل الدفعة بنجاح!', 'success');
+      setTimeout(() => location.reload(), 600);
+    } else showToast(d.msg, 'danger');
+  } catch(e) { showToast('خطأ في الاتصال', 'danger'); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-lg"></i>تسجيل الدفعة';
+}
+
+async function deleteInvoice(id) {
+  if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  const r = await fetch(`/invoice/${id}/delete`, {method:'POST', body: fd});
+  const d = await r.json();
+  if (d.ok) { showToast('تم حذف الفاتورة', 'success'); setTimeout(() => location.reload(), 400); }
+}
+
+async function deletePayment(id) {
+  if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) return;
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  const r = await fetch(`/payment/${id}/delete`, {method:'POST', body: fd});
+  const d = await r.json();
+  if (d.ok) { showToast('تم حذف الدفعة', 'success'); setTimeout(() => location.reload(), 400); }
+}
+
+function editInvoice(id, desc, amount, dt) {
+  document.getElementById('edit_inv_id').value = id;
+  document.getElementById('edit_inv_desc').value = desc || '';
+  document.getElementById('edit_inv_amount').value = amount;
+  document.getElementById('edit_inv_date').value = dt;
+  document.getElementById('edit_inv_image').value = '';
+  new bootstrap.Modal(document.getElementById('editInvoiceModal')).show();
+}
+
+async function submitEditInvoice() {
+  const id = document.getElementById('edit_inv_id').value;
+  const amount = document.getElementById('edit_inv_amount').value;
+  if (!amount || parseFloat(amount) <= 0) { showToast('أدخل مبلغاً صحيحاً', 'warning'); return; }
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i>جاري الحفظ...';
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fd.append('description', document.getElementById('edit_inv_desc').value);
+  fd.append('amount', amount);
+  fd.append('date', document.getElementById('edit_inv_date').value);
+  const img = document.getElementById('edit_inv_image').files[0];
+  if (img) fd.append('image', img);
+  try {
+    const r = await fetch(`/invoice/${id}/edit`, {method:'POST', body: fd});
+    const d = await r.json();
+    showToast(d.msg, d.ok ? 'success' : 'danger');
+    if (d.ok) setTimeout(() => location.reload(), 600);
+  } catch(e) { showToast('خطأ في الاتصال', 'danger'); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-lg"></i>حفظ التعديل';
+}
+
+function editPayment(id, amount, dt, notes, method) {
+  document.getElementById('edit_pay_id').value = id;
+  document.getElementById('edit_pay_amount').value = amount;
+  document.getElementById('edit_pay_date').value = dt;
+  document.getElementById('edit_pay_notes').value = notes || '';
+  document.getElementById('edit_pay_method').value = method || '';
+  new bootstrap.Modal(document.getElementById('editPaymentModal')).show();
+}
+
+async function submitEditPayment() {
+  const id = document.getElementById('edit_pay_id').value;
+  const amount = document.getElementById('edit_pay_amount').value;
+  if (!amount || parseFloat(amount) <= 0) { showToast('أدخل مبلغاً صحيحاً', 'warning'); return; }
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i>جاري الحفظ...';
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fd.append('amount', amount);
+  fd.append('date', document.getElementById('edit_pay_date').value);
+  fd.append('notes', document.getElementById('edit_pay_notes').value);
+  fd.append('payment_method', document.getElementById('edit_pay_method').value);
+  try {
+    const r = await fetch(`/payment/${id}/edit`, {method:'POST', body: fd});
+    const d = await r.json();
+    showToast(d.msg, d.ok ? 'success' : 'danger');
+    if (d.ok) setTimeout(() => location.reload(), 600);
+  } catch(e) { showToast('خطأ في الاتصال', 'danger'); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-lg"></i>حفظ التعديل';
+}
+
+function sendReminder() {
+  if (!confirm('إرسال تذكير واتساب لهذا العميل؟')) return;
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fetch(`/api/whatsapp/send-reminder/${CID}`, {method:'POST', body: fd})
+    .then(r => r.json())
+    .then(d => showToast(d.ok ? 'تم إرسال التذكير بنجاح' : 'فشل: ' + d.msg, d.ok ? 'success' : 'danger'))
+    .catch(() => showToast('خطأ في الاتصال', 'danger'));
+}
+</script>
+{% endblock %}

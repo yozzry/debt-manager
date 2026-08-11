@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}بيان التدفقات النقدية - المحاسبة{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 animate-in">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('accounts.trial_balance') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-right"></i></a>
+    <div>
+      <h5 class="mb-0 fw-bold"><i class="bi bi-cash-stack text-primary"></i> بيان التدفقات النقدية</h5>
+      {% if app_settings.company_name %}
+      <div class="text-muted" style="font-size:0.8rem;">{{ app_settings.company_name }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('accounts.cash_flow_pdf', from=date_from, to=date_to) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-file-earmark-pdf"></i>طباعة PDF</a>
+  </div>
+</div>
+
+<form method="GET" action="{{ url_for('accounts.cash_flow') }}" class="row g-2 align-items-end mb-4 animate-in delay-1">
+  <div class="col-auto">
+    <label class="form-label mb-1" style="font-size:0.8rem;">من تاريخ</label>
+    <input type="date" name="from" value="{{ date_from }}" class="form-control">
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-1" style="font-size:0.8rem;">إلى تاريخ</label>
+    <input type="date" name="to" value="{{ date_to }}" class="form-control">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i>عرض</button>
+  </div>
+  {% if date_from or date_to %}
+  <div class="col-auto">
+    <a href="{{ url_for('accounts.cash_flow') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
+  </div>
+  {% endif %}
+</form>
+
+{% if not data.has_start and (date_from or date_to) %}
+<div class="alert alert-warning animate-in">لا يمكن حساب الفترة السابقة بقيم غير صالحة — يظهر صافي التدفق من رصيد البداية (افتراضياً صفر).</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card mb-3 animate-in delay-1">
+      <div class="card-header py-3">
+        <span class="fw-semibold"><i class="bi bi-basket text-primary"></i> الأنشطة التشغيلية</span>
+      </div>
+      <div class="table-container">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>البيان</th>
+              <th class="text-center">المبلغ ({{ app_settings.currency_short }})</th>
+              <th style="width:90px" class="text-center">الأثر</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for desc, value, prev, note in data.operating %}
+            <tr>
+              <td>{{ desc }}</td>
+              <td class="text-center fw-semibold {% if value < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(value) }}</td>
+              <td class="text-center"><span class="badge text-bg-{{ 'success' if note == 'إضافة' else 'secondary' }}">{{ note }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="text-end fw-bold">صافي التدفق من الأنشطة التشغيلية</td>
+              <td class="text-center fw-bold" style="color: var(--text);">{{ "{:,.2f}".format(data.net_operating) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-3 animate-in delay-2">
+      <div class="card-header py-3">
+        <span class="fw-semibold"><i class="bi bi-building text-info"></i> الأنشطة الاستثمارية</span>
+      </div>
+      <div class="table-container">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>البيان</th>
+              <th class="text-center">المبلغ ({{ app_settings.currency_short }})</th>
+              <th style="width:90px" class="text-center">الأثر</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for desc, value, prev, note in data.investing %}
+            <tr>
+              <td>{{ desc }}</td>
+              <td class="text-center fw-semibold {% if value < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(value) }}</td>
+              <td class="text-center"><span class="badge text-bg-{{ 'danger' if note == 'تجاه' else 'success' }}">{{ note }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="text-end fw-bold">صافي التدفق من الأنشطة الاستثمارية</td>
+              <td class="text-center fw-bold" style="color: var(--text);">{{ "{:,.2f}".format(data.net_investing) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-3 animate-in delay-2">
+      <div class="card-header py-3">
+        <span class="fw-semibold"><i class="bi bi-bank text-warning"></i> الأنشطة التمويلية</span>
+      </div>
+      <div class="table-container">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>البيان</th>
+              <th class="text-center">المبلغ ({{ app_settings.currency_short }})</th>
+              <th style="width:90px" class="text-center">الأثر</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for desc, value, prev, note in data.financing %}
+            <tr>
+              <td>{{ desc }}</td>
+              <td class="text-center fw-semibold {% if value < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(value) }}</td>
+              <td class="text-center"><span class="badge text-bg-{{ 'danger' if note == 'سداد' or note == 'نقص' else 'success' }}">{{ note }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="text-end fw-bold">صافي التدفق من الأنشطة التمويلية</td>
+              <td class="text-center fw-bold" style="color: var(--text);">{{ "{:,.2f}".format(data.net_financing) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3 animate-in delay-3">
+      <div class="card-header py-3"><span class="fw-semibold"><i class="bi bi-cash-stack text-success"></i> ملخص التغير</span></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span>التشغيلية</span>
+          <span class="fw-bold {% if data.net_operating < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(data.net_operating) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span>الاستثمارية</span>
+          <span class="fw-bold {% if data.net_investing < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(data.net_investing) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span>التمويلية</span>
+          <span class="fw-bold {% if data.net_financing < 0 %}text-danger{% else %}text-success{% endif %}">{{ "{:,.2f}".format(data.net_financing) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="fw-semibold">صافي التغير في النقدية</span>
+          <span class="fw-bold" style="color: var(--text);">{{ "{:,.2f}".format(data.net_change) }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2">
+          <span class="fw-semibold">رصيد النقدية نهاية الفترة</span>
+          <span class="fw-bold fs-5" style="color: var(--success);">{{ "{:,.2f}".format(data.cash_balance) }} <span style="font-size:0.8rem; color: var(--text-muted);">{{ app_settings.currency_short }}</span></span>
+        </div>
+        {% if data.consistent %}
+        <div class="alert alert-success py-2 mt-2 mb-0" style="font-size:0.85rem;">
+          <i class="bi bi-check-circle-fill"></i> متسق: صافي التغير مطابق لتغير النقدية والبنك ({{ "{:,.2f}".format(data.actual_change) }})
+        </div>
+        {% else %}
+        <div class="alert alert-warning py-2 mt-2 mb-0" style="font-size:0.85rem;">
+          <i class="bi bi-exclamation-triangle-fill"></i> يوجد فرق عن التغير الفعلي للنقدية ({{ "{:,.2f}".format(data.actual_change) }}) — تحقق من الحسابات.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

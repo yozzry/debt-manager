@@ -1,0 +1,24 @@
+{% for account, depth in tree %}
+<tr>
+  <td class="text-muted" style="font-size:0.8rem">{{ loop.index }}</td>
+  <td class="fw-semibold" dir="ltr" style="padding-inline-start: {{ depth * 24 }}px;">
+    {% if depth %}<span class="text-muted">└ </span>{% endif %}{{ account.code }}
+  </td>
+  <td>
+    <a href="{{ url_for('accounts.account_detail', aid=account.id) }}" class="text-decoration-none fw-semibold" style="color: var(--text);">
+      {{ account.name }}
+    </a>
+    {% if not account.is_active %}<span class="badge-status badge-draft">غير نشط</span>{% endif %}
+  </td>
+  <td class="text-center">
+    <span class="badge-status {{ 'badge-paid' if account.account_type in ('asset', 'expense') else 'badge-draft' }}">{{ account.type_label }}</span>
+  </td>
+  <td class="text-center fw-bold" style="color: var(--primary);">{{ "{:,.2f}".format(account.balance()) }}</td>
+  <td class="text-center text-muted">{{ "{:,.2f}".format(account.opening_balance or 0) }}</td>
+  <td class="text-center">
+    {% if current_user.can_edit and account.is_leaf %}
+    <a href="{{ url_for('accounts.account_edit', aid=account.id) }}" class="btn-action btn-view" title="تعديل"><i class="bi bi-pencil"></i></a>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
