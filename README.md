@@ -49,7 +49,6 @@ python build_exe.py                                  # → dist\DebtManager\Debt
 
 ## الوثائق
 
-- `PROMPT.md` / `PROMPT_FULL.md` — مواصفات المشروع الكاملة.
 - `CHANGELOG.md` — سجل الإصلاحات.
 
 > ⚠️ بياناتك تُخزَّن محليًا في `instance\` ولا تُرفع لأي خادم خارجي. احتفظ بنسخ احتياطية من `instance\debtors.db`.

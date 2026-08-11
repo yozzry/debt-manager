@@ -47,3 +47,9 @@ desktop.ini
 *.tmp
 *.crdownload
 ~$*
+
+# === ملفات البرومبت الداخلية (لا تُنشر) ===
+PROMPT.md
+PROMPT_FULL.md
+REVIEW_PROMPT.md
+CODE_REVIEW.md
