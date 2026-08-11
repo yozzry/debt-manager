@@ -20,6 +20,27 @@ from openpyxl.utils import get_column_letter
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'}
 
+_ARABIC_FONT_CANDIDATES = (
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'fonts', 'NotoNaskhArabic-Regular.ttf'),
+    'C:/Windows/Fonts/arial.ttf',
+    '/usr/share/fonts/opentype/noto/NotoNaskhArabic-Regular.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+)
+
+
+def _register_arabic_font():
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    for path in _ARABIC_FONT_CANDIDATES:
+        if os.path.isfile(path):
+            try:
+                pdfmetrics.registerFont(TTFont('Arabic', path))
+                return True
+            except Exception:
+                continue
+    return False
+
+
 _background_logger = None
 
 
@@ -444,10 +465,9 @@ def create_pdf_report(clients, title="تقرير المديونيات", report_t
                             leftMargin=1.5*cm, rightMargin=1.5*cm,
                             topMargin=2*cm, bottomMargin=2*cm)
 
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()
@@ -532,10 +552,9 @@ def create_period_comparison(clients_current, clients_previous,
                             leftMargin=1.5*cm, rightMargin=1.5*cm,
                             topMargin=2*cm, bottomMargin=2*cm)
 
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()
@@ -600,10 +619,9 @@ def create_ledger_pdf(sections, title="دفتر الأستاذ", account_label="
                             leftMargin=1.2*cm, rightMargin=1.2*cm,
                             topMargin=1.8*cm, bottomMargin=1.8*cm)
 
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()
@@ -714,10 +732,9 @@ def create_statement_pdf(title, subtitle, sections, footer_lines=None,
                             leftMargin=1.6*cm, rightMargin=1.6*cm,
                             topMargin=1.8*cm, bottomMargin=1.8*cm)
 
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()
@@ -814,10 +831,9 @@ def create_financial_overview_pdf(title, subtitle, reports):
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                             leftMargin=1.6*cm, rightMargin=1.6*cm,
                             topMargin=1.8*cm, bottomMargin=1.8*cm)
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()
@@ -918,10 +934,9 @@ def create_client_statement_pdf(data, date_from="", date_to=""):
                             leftMargin=1.2*cm, rightMargin=1.2*cm,
                             topMargin=1.8*cm, bottomMargin=1.8*cm)
 
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()
@@ -1009,10 +1024,9 @@ def create_aging_pdf(buckets, asof=None):
                             leftMargin=1.5*cm, rightMargin=1.5*cm,
                             topMargin=1.8*cm, bottomMargin=1.8*cm)
 
-    try:
-        pdfmetrics.registerFont(TTFont('Arabic', 'C:/Windows/Fonts/arial.ttf'))
+    if _register_arabic_font():
         font_name = 'Arabic'
-    except Exception:
+    else:
         font_name = 'Helvetica'
 
     styles = getSampleStyleSheet()

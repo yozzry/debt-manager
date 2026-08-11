@@ -1,0 +1,21 @@
+# Render Blueprint — نشر نسخة العرض
+# الاستخدام: أنشئ حساب مجاني على https://render.com ثم "New > Blueprint" واربط هذا المستودع.
+services:
+  - type: web
+    name: debt-manager
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: python run_production.py
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: SECRET_KEY
+        generateValue: true
+      - key: RATELIMIT_ENABLED
+        value: "true"
